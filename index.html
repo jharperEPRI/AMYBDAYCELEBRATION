@@ -72,6 +72,7 @@
 /* ===========================
    CONFIG: puzzles (sequential)
    =========================== */
+
 const PUZZLES = [
   {
     id:"villagegrind",
@@ -79,137 +80,89 @@ const PUZZLES = [
     img:"img/village-grind.jpg?v=2",      // project-relative; safe for GitHub Pages
     reveal:{ title:"Next: The Village Grind", maps:"https://maps.apple.com/?q=The%20Village%20Grind" },
     hotspots:[
-  {
-    "x": 18.74,
-    "y": 42.85,
-    "w": 0.78,
-    "h": 0.89,
-    "label": "Balloon"
+      { "x": 18.74, "y": 42.85, "w": 0.78, "h": 0.89, "label": "Balloon" },
+      { "x": 18.07, "y": 93.39, "w": 1,    "h": 1.19, "label": "Electric Drum" },
+      { "x": 71.07, "y": 69.02, "w": 0.78, "h": 1.34, "label": "Ball" },
+      { "x": 46.2,  "y": 87.44, "w": 2.56, "h": 3.27, "label": "Vacuum" },
+      { "x": 17.31, "y": 82.84, "w": 1.44, "h": 1.34, "label": "Ernie" },
+      { "x": 83.2,  "y": 45.38, "w": 1.33, "h": 1.78, "label": "Train" },
+      { "x": 91.53, "y": 10.6,  "w": 1.22, "h": 1.34, "label": "hand sanitizer" }
+    ]
   },
+
   {
-    "x": 18.07,
-    "y": 93.39,
-    "w": 1,
-    "h": 1.19,
-    "label": "Electric Drum"
-  },
-  {
-    "x": 71.07,
-    "y": 69.02,
-    "w": 0.78,
-    "h": 1.34,
-    "label": "Ball"
-  },
-  {
-    "x": 46.2,
-    "y": 87.44,
-    "w": 2.56,
-    "h": 3.27,
-    "label": "Vacuum"
-  },
-  {
-    "x": 17.31,
-    "y": 82.84,
-    "w": 1.44,
-    "h": 1.34,
-    "label": "Ernie"
-  },
-  {
-    "x": 83.2,
-    "y": 45.38,
-    "w": 1.33,
-    "h": 1.78,
-    "label": "Train"
-  },
-  {
-    "x": 91.53,
-    "y": 10.6,
-    "w": 1.22,
-    "h": 1.34,
-    "label": "hand sanitizer"
-  }
-]
-  },
-    {
     id:"morninggoat",
     name:"Event 2: Sustinence",
-    img:"img/morning-goat.jpg?v=2",      // project-relative; safe for GitHub Pages
+    img:"img/morning-goat.jpg?v=2",
     reveal:{ title:"Next: The Morning Goat", maps:"https://maps.apple.com/?q=The%20Morning%20Goat" },
     hotspots:[
-
-      
       // Replace these after author-mode drawing
       { x:25.52, y:31.15, w:27.97, h:18.3, label:"Pancake" },
       { x:57.58, y:75.15, w:15.15, h:24.85, label:"Sippy Cup" }
     ]
   },
-    {
+
+  {
     id:"paintingwithatwist",
     name:"Event 3: Creativity",
-    img:"img/morning-goat.jpg?v=2",      // project-relative; safe for GitHub Pages
-    reveal:{ title:"Next: Painting With a Twist",maps:"https://maps.apple.com/?q=Painting%20With%20a%20Twist" },
+    // OPTIONAL: consider using the actual Painting With a Twist image:
+    // img:"img/painting-with-a-twist.jpg?v=2",
+    img:"img/morning-goat.jpg?v=2",
+    reveal:{ title:"Next: Painting With a Twist", maps:"https://maps.apple.com/?q=Painting%20With%20a%20Twist" },
     hotspots:[
-
-      
-      // Replace these after author-mode drawing
       { x:25.52, y:31.15, w:27.97, h:18.3, label:"Pancake" },
       { x:57.58, y:75.15, w:15.15, h:24.85, label:"Sippy Cup" }
     ]
   },
-    {
+
+  {
     id:"swamprabbit",
     name:"Event 4: Exersize And Recarge",
-    img:"img/swamp-rabbit-cafe.jpg?v=2",      // project-relative; safe for GitHub Pages
-    reveal:{ title:"Next: A Walk on the Swamp Rabbit", https://maps.apple.com/?q=Swamp%20Rabbit%20Cafe%20and%20Grocery" },
+    img:"img/swamp-rabbit-cafe.jpg?v=2",
+    reveal:{ title:"Next: A Walk on the Swamp Rabbit", maps:"https://maps.apple.com/?q=Swamp%20Rabbit%20Cafe%20and%20Grocery" },
     hotspots:[
-
-      
-      // Replace these after author-mode drawing
       { x:25.52, y:31.15, w:27.97, h:18.3, label:"Pancake" },
       { x:57.58, y:75.15, w:15.15, h:24.85, label:"Sippy Cup" }
     ]
   },
-    {
+
+  {
     id:"hollowed-earth",
     name:"Event 5: Mugged",
-    img:"img/hollowed-earth.jpg?v=2",      // project-relative; safe for GitHub Pages
-    reveal:{ title:"Next: Mugs at Hollowed Earth",https://maps.apple.com/?q=Hollowed%20Earth" },
+    img:"img/hollowed-earth.jpg?v=2",
+    reveal:{ title:"Next: Mugs at Hollowed Earth", maps:"https://maps.apple.com/?q=Hollowed%20Earth%20Pottery" },
     hotspots:[
-
-      
-      // Replace these after author-mode drawing
       { x:25.52, y:31.15, w:27.97, h:18.3, label:"Pancake" },
       { x:57.58, y:75.15, w:15.15, h:24.85, label:"Sippy Cup" }
     ]
   },
-    {
+
+  {
     id:"trio",
     name:"Event 6: Classa Din",
-    img:"img/hollowed-earth.jpg?v=2",      // project-relative; safe for GitHub Pages
-    reveal:{ title:"Next: Dinner at Trio,https://maps.apple.com/?q=Trio" },
+    img:"img/hollowed-earth.jpg?v=2",  // OPTIONAL: probably want Trio's image instead
+    reveal:{ title:"Next: Dinner at Trio", maps:"https://maps.apple.com/?q=Trio%20A%20Brick%20Oven%20Cafe" },
     hotspots:[
-
-      
-      // Replace these after author-mode drawing
-      { x:25.52, y:31.15, w:27.97, h:18.3, label:"Pancake" },
-      { x:57.58, y:75.15, w:15.15, h:24.85, label:"Sippy Cup" }
-    ]
-  },  
-    {
-    id:"humanesociety",
-    name:"Event 7: Being Helpful",
-    img:"img/humane-society.jpg?v=2",      // project-relative; safe for GitHub Pages
-    reveal:{ title:"Next: Volunteer Walking a Pooch at the Humane Society, https://maps.apple.com/place?place-id=IBA9DF8F376C723B8&address=305+Airport+Rd%2C+Greenville%2C+SC+29607%2C+United+States&coordinate=34.8445965%2C-82.3540038&name=Greenville+Humane+Society&_provider=9902},
-    hotspots:[
-
-      
-      // Replace these after author-mode drawing
       { x:25.52, y:31.15, w:27.97, h:18.3, label:"Pancake" },
       { x:57.58, y:75.15, w:15.15, h:24.85, label:"Sippy Cup" }
     ]
   },
-  // Add your other stops here (Morning Goat, Painting with a Twist, etc.)
+
+  {
+    id:"humanesociety",
+    name:"Event 7: Being Helpful",
+    img:"img/humane-society.jpg?v=2",
+    reveal:{
+      title:"Next: Volunteer Walking a Pooch at the Humane Society",
+      maps:"https://maps.apple.com/place?place-id=IBA9DF8F376C723B8&address=305+Airport+Rd%2C+Greenville%2C+SC+29607%2C+United+States&coordinate=34.8445965%2C-82.3540038&name=Greenville+Humane+Society&_provider=9902"
+    },
+    hotspots:[
+      { x:25.52, y:31.15, w:27.97, h:18.3, label:"Pancake" },
+      { x:57.58, y:75.15, w:15.15, h:24.85, label:"Sippy Cup" }
+    ]
+  }
 ];
+
 
 /* ===========================
    STATE & UTILS
@@ -561,6 +514,7 @@ if ('serviceWorker' in navigator) {
 render();
 </script>
 </body>
+
 
 
 
