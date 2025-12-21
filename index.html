@@ -3,9 +3,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   manifest.json
-  <title>Birthday Quest — Clue Unlocks</title>
+  <title>Birthday Quest — Hidden Objects</title>
   <style>
     :root { --primary:#007aff; --gray:#6b7280; --green:#10b981; --red:#ef4444; }
     * { box-sizing: border-box; }
@@ -13,32 +13,36 @@
     header { padding:1rem; text-align:center; border-bottom:1px solid #eee; }
     header h1 { margin:.2rem 0; }
     header p { color:var(--gray); margin:.2rem 0 .6rem; }
-    .progress { width:90%; max-width:680px; margin:.5rem auto 1rem; background:#f4f4f5; border-radius:999px; overflow:hidden; height:10px; }
+    .progress { width:92%; max-width:720px; margin:.5rem auto 1rem; background:#f4f4f5; border-radius:999px; overflow:hidden; height:10px; }
     .bar { height:100%; background:linear-gradient(90deg, var(--primary), #34d399); width:0%; transition:width .4s; }
-    main { max-width:820px; margin:0 auto; padding:1rem; }
-    .card { border:1px solid #e5e7eb; border-radius:14px; padding:1rem; margin:.8rem 0; box-shadow:0 1px 2px rgba(0,0,0,.04); }
-    .meta { font-size:.9rem; color:var(--gray); margin:.4rem 0; }
-    .hint { color:var(--gray); font-style:italic; }
+    main { max-width:980px; margin:0 auto; padding:1rem; }
+    .card { border:1px solid #e5e7eb; border-radius:14px; padding:1rem; margin:1rem 0; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+    .title { display:flex; justify-content:space-between; align-items:center; gap:1rem; }
+    .meta { font-size:.95rem; color:var(--gray); }
+    .imgWrap { position:relative; width:100%; max-width:900px; margin:.8rem auto; border-radius:12px; overflow:hidden; }
+    .imgWrap img { width:100%; display:block; touch-action:manipulation; }
+    .hotspot { position:absolute; border:2px dashed rgba(16,185,129,.0); /* invisible by default */ border-radius:8px; pointer-events:none; }
+    .hotspot.found { border-color: rgba(16,185,129,.8); box-shadow: 0 0 0 3px rgba(16,185,129,.25) inset; }
+    .label { display:inline-block; background:#00000099; color:#fff; border-radius:10px; padding:.2rem .5rem; font-size:.85rem; margin:.3rem .3rem 0 0; }
+    .labels { margin-top:.4rem; }
     .btn { background:var(--primary); color:#fff; border:none; border-radius:12px; padding:.6rem 1rem; font-weight:600; cursor:pointer; }
     .btn.secondary { background:#6d28d9; }
     .btn.ghost { background:#f4f4f5; color:#111; }
-    .row { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; }
-    input[type="text"] { width:100%; max-width:420px; padding:.5rem .6rem; border:1px solid #d1d5db; border-radius:10px; }
-    .task { display:flex; align-items:center; gap:.5rem; margin:.25rem 0; }
-    .task input[type="checkbox"] { width:18px; height:18px; }
     .result { margin:.5rem 0; }
     .success { color:var(--green); font-weight:600; }
     .warn { color:var(--red); }
-    .photo { width:100%; max-width:360px; margin:.4rem 0; border-radius:12px; display:none; }
+    .nextPanel { margin-top:.8rem; padding:.8rem; background:#f9fafb; border:1px solid #e5e7eb; border-radius:12px; }
     footer { text-align:center; color:var(--gray); padding:2rem 1rem; }
+    /* author mode overlay rectangle */
+    .drawRect { position:absolute; border:2px dashed #ff9800; background:rgba(255,152,0,.12); pointer-events:none; }
   </style>
 </head>
 <body>
 <header>
-  <h1>🎉 Birthday Quest — Jan 10–11, 2026</h1>
-  <p>Solve each clue to unlock the next destination. Some stops unlock by time and location.</p>
+  <h1>🎉 Birthday Quest — Hidden Objects</h1>
+  <p>Find the hidden items in each image to reveal the next location.</p>
   <div class="progress"><div class="bar" id="bar"></div></div>
-  <p class="hint">Add to Home Screen for the full‑screen app experience.</p>
+  <p class="meta">Tip: In Safari, tap <b>Share</b> → <b>Add to Home Screen</b> for an app-like experience.</p>
 </header>
 
 <main id="app"></main>
@@ -46,322 +50,225 @@
 
 <script>
 // =============================
-// CONFIG: itinerary (sequential)
+// CONFIG: puzzles (sequential)
+// Each puzzle uses an image and a list of hotspots defined
+// in percentage units relative to the image’s natural size.
 // =============================
-const STOPS = [
+const PUZZLES = [
   {
     id:"villagegrind",
-    name:"The Village Grind — Coffee Kickoff",
-    day:"2026-01-10",
-    lat:null, lon:null, radius_m:120, // TODO: paste precise coords
-    time:{ start:"2026-01-10T08:00:00-05:00", end:"2026-01-10T12:00:00-05:00" },
-    clue:{
-      type:"riddle",
-      prompt:"Find a latte whose name evokes the sea. Enter the FIRST word of its name.",
-      answers:["ocean"], // case-insensitive
-    },
-    tasks:["Order her favorite or a seasonal latte","Find a mural/art nearby and snap a photo","Cheers selfie"],
-    maps:"https://maps.apple.com/?q=The%20Village%20Grind",
-    requires:{ geofence:true, time:true, minChecks:2, photo:true }
+    name:"Hidden Objects — Coffee & Pastries",
+    img:"/img/village-grind.jpg",
+    // After finding all, reveal this destination:
+    reveal:{ title:"Next: The Village Grind", maps:"https://maps.apple.com/?q=The%20Village%20Grind" },
+    hotspots:[
+      // Example rectangles (percent units): {x,y,w,h,label}
+      // Replace with author-mode output once you draw exact boxes.
+      { x:36.0, y:62.5, w:9.0, h:12.0, label:"Coffee cup" },
+      { x:22.5, y:48.0, w:12.5, h:10.0, label:"Pastry plate" }
+    ]
   },
   {
     id:"morninggoat",
-    name:"The Morning Goat — Brunch/Lunch",
-    day:"2026-01-10",
-    lat:null, lon:null, radius_m:150, // TODO
-    time:{ start:"2026-01-10T10:00:00-05:00", end:"2026-01-10T14:00:00-05:00" },
-    clue:{
-      type:"finds",
-      prompt:"Look & find: spot any GOAT reference (logo, art, menu). Check off three mini‑tasks.",
-      checklist:["Family table photo (no phones visible)","Photo of a goat reference","Pick a shared dish and rate it 1–5"]
-    },
-    tasks:[],
-    maps:"https://maps.apple.com/?q=The%20Morning%20Goat",
-    requires:{ geofence:true, time:true, minChecks:3, photo:true }
+    name:"Hidden Objects — Brunch Clues",
+    img:"/img/morning-goat.jpg",
+    reveal:{ title:"Next: The Morning Goat", maps:"https://maps.apple.com/?q=The%20Morning%20Goat" },
+    hotspots:[
+      { x:18.0, y:54.0, w:10.0, h:10.0, label:"Goat icon" },
+      { x:58.0, y:38.0, w:12.0, h:9.0,  label:"Latte art" },
+      { x:73.0, y:66.0, w:8.0,  h:7.0,  label:"Menu header" }
+    ]
   },
   {
     id:"paintingtwist",
-    name:"Painting with a Twist — Canvas Session (1–3 PM)",
-    day:"2026-01-10",
-    lat:null, lon:null, radius_m:120, // TODO
-    time:{ start:"2026-01-10T12:50:00-05:00", end:"2026-01-10T15:10:00-05:00" },
-    clue:{
-      type:"riddle",
-      prompt:"Unscramble this art word: <strong>RUBSH</strong>. Enter the correct word.",
-      answers:["brush"]
-    },
-    tasks:["Group selfie with aprons","Hide a tiny heart in each painting","Photo of four canvases together"],
-    maps:"https://maps.apple.com/?q=Painting%20With%20a%20Twist",
-    requires:{ geofence:true, time:true, minChecks:2, photo:true }
+    name:"Hidden Objects — Studio Details",
+    img:"/img/painting-with-a-twist.jpg",
+    reveal:{ title:"Next: Painting with a Twist (1–3 PM)", maps:"https://maps.apple.com/?q=Painting%20With%20a%20Twist" },
+    hotspots:[
+      { x:44.0, y:40.0, w:10.0, h:12.0, label:"Paint brush" },
+      { x:64.0, y:55.0, w:12.0, h:10.0, label:"Palette" }
+    ]
   },
   {
     id:"swamprabbitcafe",
-    name:"Swamp Rabbit Café — Snack & Trail",
-    day:"2026-01-10",
-    lat:null, lon:null, radius_m:160, // TODO
-    time:{ start:"2026-01-10T15:00:00-05:00", end:"2026-01-10T17:40:00-05:00" },
-    clue:{
-      type:"finds",
-      prompt:"Trail tokens challenge: capture photos of (1) a bike bell, (2) a bridge/trestle, (3) a park sign.",
-      checklist:["Rabbit logo selfie","Bike bell or bike close‑up","Bridge/trestle or overlook","Park sign"]
-    },
-    tasks:["High‑five line on the trail"],
-    maps:"https://maps.apple.com/?q=Swamp%20Rabbit%20Cafe%20and%20Grocery",
-    requires:{ geofence:true, time:true, minChecks:3, photo:true }
+    name:"Hidden Objects — Café & Trail",
+    img:"/img/swamp-rabbit-cafe.jpg",
+    reveal:{ title:"Next: Swamp Rabbit Café & Trail", maps:"https://maps.apple.com/?q=Swamp%20Rabbit%20Cafe%20and%20Grocery" },
+    hotspots:[
+      { x:26.0, y:42.0, w:10.0, h:10.0, label:"Rabbit logo" },
+      { x:70.0, y:60.0, w:11.0, h:11.0, label:"Bike wheel" },
+      { x:52.0, y:28.0, w:14.0, h:8.0,  label:"Trail sign" }
+    ]
   },
   {
     id:"hollowedearth",
-    name:"Hollowed Earth Pottery — Mug Making (6–7:30 PM)",
-    day:"2026-01-10",
-    lat:null, lon:null, radius_m:120, // TODO
-    time:{ start:"2026-01-10T17:45:00-05:00", end:"2026-01-10T19:45:00-05:00" },
-    clue:{
-      type:"riddle",
-      prompt:"Clay on the wheel: the action that gets clay centered is called… (enter one word).",
-      answers:["wedging","center","centering"] // accept a few
-    },
-    tasks:["Wheel action shot for each person","Photo of chosen glaze colors","Group photo with mugs"],
-    maps:"https://maps.apple.com/?q=Hollowed%20Earth%20Pottery",
-    requires:{ geofence:true, time:true, minChecks:2, photo:true }
+    name:"Hidden Objects — Clay & Wheels",
+    img:"/img/hollowed-earth.jpg",
+    reveal:{ title:"Next: Hollowed Earth Pottery (6–7:30 PM)", maps:"https://maps.apple.com/?q=Hollowed%20Earth%20Pottery" },
+    hotspots:[
+      { x:42.0, y:58.0, w:12.0, h:12.0, label:"Potter’s wheel" },
+      { x:18.0, y:38.0, w:10.0, h:10.0, label:"Glaze shelf" }
+    ]
   },
   {
     id:"trio",
-    name:"Trio — Family Favorite Dinner",
-    day:"2026-01-10",
-    lat:null, lon:null, radius_m:150, // TODO
-    time:{ start:"2026-01-10T19:30:00-05:00", end:"2026-01-10T22:30:00-05:00" },
-    clue:{
-      type:"riddle",
-      prompt:"What heats the pizza here? Enter the material (hint: the restaurant’s name).",
-      answers:["brick"]
-    },
-    tasks:["Table toast photo","Each shares a favorite moment (short video ok)","Dessert/last slice photo"],
-    maps:"https://maps.apple.com/?q=Trio%20A%20Brick%20Oven%20Cafe",
-    requires:{ geofence:true, time:false, minChecks:2, photo:true }
+    name:"Hidden Objects — Brick Oven",
+    img:"/img/trio.jpg",
+    reveal:{ title:"Next: Trio — Family Favorite Dinner", maps:"https://maps.apple.com/?q=Trio%20A%20Brick%20Oven%20Cafe" },
+    hotspots:[
+      { x:60.0, y:40.0, w:14.0, h:12.0, label:"Brick oven" },
+      { x:32.0, y:62.0, w:10.0, h:10.0, label:"Pizza paddle" }
+    ]
   },
   {
     id:"humane",
-    name:"Greenville Humane Society — Dog Walk (Sun 10:30 AM)",
-    day:"2026-01-11",
-    lat:null, lon:null, radius_m:150, // TODO
-    time:{ start:"2026-01-11T10:00:00-05:00", end:"2026-01-11T12:00:00-05:00" },
-    clue:{
-      type:"riddle",
-      prompt:"Your walking buddy’s name starts with which LETTER? Enter the first letter.",
-      answers:["a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z"] // accept any; you can refine later
-    },
-    tasks:["Photo with your pup & name tag","10‑second happy trot video","Group selfie + ‘thank you’ to the shelter"],
-    maps:"https://maps.apple.com/?q=Greenville%20Humane%20Society",
-    requires:{ geofence:true, time:true, minChecks:2, photo:true }
+    name:"Hidden Objects — Shelter Day",
+    img:"/img/humane-society.jpg",
+    reveal:{ title:"Finale: Greenville Humane Society (Sun 10:30 AM)", maps:"https://maps.apple.com/?q=Greenville%20Humane%20Society" },
+    hotspots:[
+      { x:24.0, y:52.0, w:12.0, h:10.0, label:"Leash" },
+      { x:68.0, y:48.0, w:12.0, h:12.0, label:"Water bowl" }
+    ]
   }
 ];
 
 // =============================
-// STORAGE & UTILS
+// STATE & UTILS
 // =============================
-const DBKEY = 'quest2026-seq';
-const readDB = () => { try { return JSON.parse(localStorage.getItem(DBKEY))||{ idx:0, data:{} }; } catch(e){ return { idx:0, data:{} }; } };
+const DBKEY = 'quest2026-hidden';
+const readDB = () => { try { return JSON.parse(localStorage.getItem(DBKEY))||{ idx:0, found:{} }; } catch(e){ return { idx:0, found:{} }; } };
 const writeDB = (d) => localStorage.setItem(DBKEY, JSON.stringify(d));
-
-const normalize = (s) => (s || '').toLowerCase().trim().replace(/[^\p{L}\p{N}]+/gu,'');
-const inAnswers = (val, answers) => answers.map(a => normalize(a)).includes(normalize(val));
-
-function distanceMeters(a, b) {
-  const toRad = deg => deg * Math.PI/180, R=6371000;
-  const dLat = toRad(b.lat - a.lat), dLon = toRad(b.lon - a.lon);
-  const lat1 = toRad(a.lat), lat2 = toRad(b.lat);
-  const h = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
-  return 2*R*Math.asin(Math.sqrt(h));
-}
-const withinWindow = (win) => {
-  if(!win) return true;
-  const now = new Date(), start=new Date(win.start), end=new Date(win.end);
-  return now>=start && now<=end;
-};
-const fmt = (iso) => new Date(iso).toLocaleString([], { dateStyle:'medium', timeStyle:'short' });
+const pctToPx = (pct, size) => pct/100 * size;
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+const authorMode = new URL(location.href).searchParams.get('author') === '1';
 
 // =============================
-// RENDER CURRENT STOP ONLY
+// RENDER CURRENT PUZZLE
 // =============================
-function render() {
+function render(){
   const state = readDB();
+  const idx = clamp(state.idx, 0, PUZZLES.length-1);
+  const p = PUZZLES[idx];
   const app = document.getElementById('app');
   app.innerHTML = '';
 
-  const total = STOPS.length;
-  const completed = Object.values(state.data).filter(s => s?.unlocked).length;
-  document.getElementById('bar').style.width = Math.round(completed/total*100)+'%';
+  const completed = Object.keys(state.found).filter(id => state.found[id]?.all).length;
+  document.getElementById('bar').style.width = Math.round(completed/PUZZLES.length*100) + '%';
 
-  const idx = Math.min(state.idx, STOPS.length-1);
-  const s = STOPS[idx];
-
-  // Header card
   const card = document.createElement('div'); card.className='card';
+  const labelsHtml = p.hotspots.map(h => `<span class="label">${h.label}</span>`).join('');
   card.innerHTML = `
-    <h2>${s.name}</h2>
-    <p class="meta">${s.time ? `Time window: ${fmt(s.time.start)} – ${fmt(s.time.end)} • ` : ''}${s.maps}Open in Maps</a></p>
-    <p class="hint">${s.clue.prompt}</p>
-    <div class="clue"></div>
-    <div class="tasks"></div>
-    <div class="row">
-      <button class="btn" id="checkLoc">Check Location</button>
-      <button class="btn secondary" id="addPhoto">Add Photo</button>
-      <button class="btn ghost" id="saveProgress">Save Tasks</button>
+    <div class="title">
+      <h2>${p.name}</h2>
+      <span class="meta">${idx+1} / ${PUZZLES.length}</span>
     </div>
-    <div class="result"></div>
-    <img class="photo" id="photo" />
-    <input type="file" id="file" accept="image/*" capture="environment" style="display:none" />
+    <div class="labels">${labelsHtml}</div>
+    <div class="imgWrap">
+      ${p.img}
+    </div>
+    <div class="result" id="result"></div>
+    <div class="nextPanel" id="nextPanel" style="display:none">
+      <p class="success">All items found! 🎊</p>
+      <p><strong>${p.reveal.title}</strong></p>
+      <p><a class="btn"s}Open in Apple Maps</a></p>
+      ${idx < PUZZLES.length-1 ? `<button class="btn secondary" id="nextBtn">Reveal Next Image</button>` : `<p>💜 You reached the finale! Have an amazing day.</p>`}
+    </div>
+    ${authorMode ? `<p class="meta">Author mode: drag to draw rectangles; see console for JSON.</p>` : ''}
   `;
   app.appendChild(card);
 
-  // Clue UI
-  const clueBox = card.querySelector('.clue');
-  let checks = [];
-  if (s.clue.type === 'riddle') {
-    clueBox.innerHTML = `
-      <div class="row">
-        <input type="text" id="answer" placeholder="Type answer…" />
-        <button class="btn" id="submit">Submit</button>
-      </div>
-    `;
-  } else if (s.clue.type === 'finds') {
-    clueBox.innerHTML = `<p><strong>Check each item as you find it:</strong></p>`;
-    s.clue.checklist.forEach((t, i) => {
-      const row = document.createElement('div'); row.className='task';
-      const cb = document.createElement('input'); cb.type='checkbox'; cb.id='chk'+i;
-      cb.checked = !!readDB().data[s.id]?.checks?.[i];
-      cb.addEventListener('change', () => { checks[i] = cb.checked; });
-      const label = document.createElement('label'); label.textContent = t;
-      row.appendChild(cb); row.appendChild(label); clueBox.appendChild(row);
+  const img = card.querySelector('#pimg');
+  const result = card.querySelector('#result');
+  const nextPanel = card.querySelector('#nextPanel');
+
+  img.addEventListener('load', () => {
+    const rect = img.getBoundingClientRect();
+    const wrap = img.parentElement;
+
+    // Restore found state for current puzzle
+    const s = readDB();
+    const fset = s.found[p.id]?.set || new Array(p.hotspots.length).fill(false);
+
+    // Place (invisible) hotspot overlays for "found" visualization
+    p.hotspots.forEach((h, i) => {
+      const hs = document.createElement('div'); hs.className='hotspot';
+      const x = pctToPx(h.x, rect.width), y = pctToPx(h.y, rect.height);
+      const w = pctToPx(h.w, rect.width), hpx = pctToPx(h.h, rect.height);
+      hs.style.left = x+'px'; hs.style.top = y+'px'; hs.style.width = w+'px'; hs.style.height = hpx+'px';
+      if (fset[i]) hs.classList.add('found');
+      wrap.appendChild(hs);
     });
-  }
 
-  // Tasks UI (optional “extras” to earn the unlock)
-  const tasksBox = card.querySelector('.tasks');
-  if (s.tasks?.length) {
-    tasksBox.innerHTML = `<p><strong>Mini‑tasks (optional but fun):</strong></p>`;
-    s.tasks.forEach((t, i) => {
-      const row = document.createElement('div'); row.className='task';
-      const cb = document.createElement('input'); cb.type='checkbox'; cb.id='task'+i;
-      cb.checked = !!readDB().data[s.id]?.tasks?.[i];
-      cb.addEventListener('change', () => {
-        const st = readDB(); st.data[s.id] = st.data[s.id] || {};
-        (st.data[s.id].tasks ||= [])[i] = cb.checked; writeDB(st);
-      });
-      const label = document.createElement('label'); label.textContent = t;
-      row.appendChild(cb); row.appendChild(label); tasksBox.appendChild(row);
-    });
-  }
-
-  // Actions
-  const result = card.querySelector('.result');
-  const answerEl = card.querySelector('#answer');
-  const submitBtn = card.querySelector('#submit');
-  const checkLocBtn = card.querySelector('#checkLoc');
-  const addPhotoBtn = card.querySelector('#addPhoto');
-  const saveProgressBtn = card.querySelector('#saveProgress');
-  const file = card.querySelector('#file');
-  const photo = card.querySelector('#photo');
-
-  // Submit riddle
-  if (submitBtn) {
-    submitBtn.addEventListener('click', () => {
-      const val = answerEl?.value || '';
-      if (!inAnswers(val, s.clue.answers)) {
-        result.innerHTML = `<p class="warn">Not quite—try again!</p>`;
+    // Click/tap detection
+    wrap.addEventListener('click', (ev) => {
+      if (authorMode) return; // drawing handled separately
+      const r = img.getBoundingClientRect();
+      const cx = ev.clientX - r.left; const cy = ev.clientY - r.top;
+      const { hitIndex } = detectHit(p.hotspots, r.width, r.height, cx, cy, fset);
+      if (hitIndex !== -1) {
+        fset[hitIndex] = true;
+        // mark visual
+        const hs = wrap.querySelectorAll('.hotspot')[hitIndex];
+        hs.classList.add('found');
+        saveFound(p.id, fset);
+        result.innerHTML = `<p class="success">Found: ${p.hotspots[hitIndex].label}</p>`;
+        confetti(10);
+        // check completion
+        if (fset.every(Boolean)) {
+          markComplete(p.id);
+          nextPanel.style.display = 'block';
+        }
       } else {
-        const st = readDB(); st.data[s.id] = st.data[s.id] || {};
-        st.data[s.id].riddleOK = true; writeDB(st);
-        result.innerHTML = `<p class="success">Clue solved!</p>`;
-        confetti();
+        result.innerHTML = `<p>Keep hunting…</p>`;
       }
     });
-  }
 
-  // Save checklist progress (for "finds" type)
-  if (saveProgressBtn && s.clue.type==='finds') {
-    saveProgressBtn.addEventListener('click', () => {
-      const st = readDB(); st.data[s.id] = st.data[s.id] || {};
-      st.data[s.id].checks = checks;
-      writeDB(st);
-      result.innerHTML = `<p>Progress saved.</p>`;
-    });
-  }
-
-  // Location check
-  checkLocBtn.addEventListener('click', () => {
-    if (!('geolocation' in navigator)) { result.innerHTML = `<p class="warn">Geolocation unavailable.</p>`; return; }
-    if (s.lat == null || s.lon == null) { result.innerHTML = `<p class="warn">Coordinates missing for this stop.</p>`; return; }
-    navigator.geolocation.getCurrentPosition(pos => {
-      const me = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-      const d = Math.round(distanceMeters(me, {lat:s.lat, lon:s.lon}));
-      const timeOK = s.time ? withinWindow(s.time) : true;
-      if (!timeOK) { result.innerHTML = `<p class="warn">Too early/late. Window: <b>${fmt(s.time.start)}</b>–<b>${fmt(s.time.end)}</b>.</p>`; return; }
-      const st = readDB(); st.data[s.id] = st.data[s.id] || {};
-      st.data[s.id].geoOK = d <= (s.radius_m || 120);
-      writeDB(st);
-      result.innerHTML = st.data[s.id].geoOK ? `<p class="success">On location! (~${d} m)</p>` : `<p>Keep going… ~${d} m away.</p>`;
-      if (st.data[s.id].geoOK) confetti();
-    }, err => result.textContent = err.message, { enableHighAccuracy:true, timeout:12000 });
+    // Author mode: draw rectangles, export JSON percentage coords
+    if (authorMode) enableAuthorDraw(wrap, img);
   });
 
-  // Photo handling (as proof)
-  addPhotoBtn.addEventListener('click', () => file.click());
-  file.addEventListener('change', () => {
-    const f = file.files[0]; if (!f) return;
-    photo.src = URL.createObjectURL(f); photo.style.display='block';
-    const st = readDB(); st.data[s.id] = st.data[s.id] || {};
-    st.data[s.id].photo = true; writeDB(st);
-    result.innerHTML = `<p>Photo added. 📸</p>`;
+  // Next button
+  const nextBtn = card.querySelector('#nextBtn');
+  if (nextBtn) nextBtn.addEventListener('click', () => {
+    const s = readDB(); s.idx = clamp(s.idx+1, 0, PUZZLES.length-1); writeDB(s);
+    render();
   });
-
-  // Unlock logic: tap card bottom to attempt advance
-  const advanceBtn = document.createElement('button');
-  advanceBtn.className='btn'; advanceBtn.textContent='Reveal Next Clue';
-  advanceBtn.style.marginTop = '.6rem';
-  advanceBtn.addEventListener('click', () => tryAdvance(s));
-  card.appendChild(advanceBtn);
 }
 
-function tryAdvance(s){
-  const st = readDB(); const sd = st.data[s.id] || {};
-  // Minimum checklist items if any
-  const checksDone = Array.isArray(sd.checks) ? sd.checks.filter(Boolean).length : 0;
-  const tasksDone = Array.isArray(sd.tasks) ? sd.tasks.filter(Boolean).length : 0;
-
-  const needRiddle = (s.clue.type==='riddle') ? !!sd.riddleOK : true;
-  const needChecks = (s.clue.type==='finds') ? (checksDone >= (s.requires.minChecks||0)) : true;
-  const needPhoto = s.requires.photo ? !!sd.photo : true;
-  const needGeo   = s.requires.geofence ? !!sd.geoOK : true;
-  const needTime  = s.requires.time ? withinWindow(s.time) : true;
-
-  const ok = needRiddle && needChecks && needPhoto && needGeo && needTime;
-  const app = document.getElementById('app');
-  const msg = document.createElement('div'); msg.className='result';
-  app.appendChild(msg);
-
-  if (!ok) {
-    const reasons = [];
-    if (!needRiddle) reasons.push('solve the clue');
-    if (!needChecks) reasons.push(`complete at least ${s.requires.minChecks} checklist items`);
-    if (!needPhoto) reasons.push('add a photo');
-    if (!needGeo) reasons.push('be at the location');
-    if (!needTime) reasons.push('arrive during the time window');
-    msg.innerHTML = `<p class="warn">Almost! Please ${reasons.join(', ')}.</p>`;
-    return;
+function detectHit(hotspots, w, h, cx, cy, fset){
+  // Find first hotspot not yet found that contains the click point
+  for (let i=0; i<hotspots.length; i++){
+    if (fset[i]) continue;
+    const hs = hotspots[i];
+    const rx = pctToPx(hs.x, w), ry = pctToPx(hs.y, h);
+    const rw = pctToPx(hs.w, w), rh = pctToPx(hs.h, h);
+    if (cx >= rx && cx <= rx+rw && cy >= ry && cy <= ry+rh) {
+      return { hitIndex:i };
+    }
   }
-
-  // Mark stop unlocked and advance
-  st.data[s.id] = { ...sd, unlocked:true };
-  const nextIdx = Math.min(readDB().idx + 1, STOPS.length-1);
-  st.idx = nextIdx; writeDB(st);
-  msg.innerHTML = `<p class="success">Unlocked! Next clue revealed.</p>`;
-  confetti();
-  setTimeout(render, 600);
+  return { hitIndex:-1 };
 }
 
-function confetti(){
-  for(let i=0;i<18;i++){
+// =============================
+// STATE HELPERS
+// =============================
+function saveFound(id, set){
+  const s = readDB(); s.found[id] = s.found[id] || {};
+  s.found[id].set = set;
+  writeDB(s);
+}
+function markComplete(id){
+  const s = readDB(); s.found[id] = s.found[id] || {};
+  s.found[id].all = true; writeDB(s);
+  const completed = Object.keys(s.found).filter(k => s.found[k]?.all).length;
+  document.getElementById('bar').style.width = Math.round(completed/PUZZLES.length*100) + '%';
+}
+
+// =============================
+// CONFETTI (simple emoji)
+// =============================
+function confetti(n=18){
+  for(let i=0;i<n;i++){
     const d=document.createElement('div');
     d.textContent='🎊'; d.style.position='fixed'; d.style.left=Math.random()*100+'%';
     d.style.top='-20px'; d.style.fontSize='20px'; d.style.transition='transform 1.2s ease, opacity 1.2s';
@@ -371,9 +278,67 @@ function confetti(){
   }
 }
 
-// Init
+// =============================
+// AUTHOR MODE — draw rectangles
+// Drag to draw hotspot boxes; logs JSON with percent coords.
+// =============================
+function enableAuthorDraw(wrap, img){
+  let start=null, rectEl=null;
+  const toPct = (px, size) => (px/size)*100;
+  const getImgRect = () => img.getBoundingClientRect();
+  const drawn = [];
+  wrap.addEventListener('mousedown', (e)=>{
+    const r=getImgRect(); start={ x:e.clientX - r.left, y:e.clientY - r.top };
+    rectEl=document.createElement('div'); rectEl.className='drawRect';
+    rectEl.style.left=start.x+'px'; rectEl.style.top=start.y+'px';
+    wrap.appendChild(rectEl);
+  });
+  window.addEventListener('mousemove', (e)=>{
+    if(!start||!rectEl) return;
+    const r=getImgRect();
+    const cx=e.clientX - r.left, cy=e.clientY - r.top;
+    const w=cx - start.x, h=cy - start.y;
+    rectEl.style.width=Math.abs(w)+'px';
+    rectEl.style.height=Math.abs(h)+'px';
+    rectEl.style.left=(w<0? cx : start.x)+'px';
+    rectEl.style.top=(h<0? cy : start.y)+'px';
+  });
+  window.addEventListener('mouseup', (e)=>{
+    if(!start||!rectEl) return;
+    const r=getImgRect();
+    const left=parseFloat(rectEl.style.left), top=parseFloat(rectEl.style.top);
+    const w=parseFloat(rectEl.style.width), h=parseFloat(rectEl.style.height);
+    const json = {
+      x: +toPct(left, r.width).toFixed(2),
+      y: +toPct(top,  r.height).toFixed(2),
+      w: +toPct(w,    r.width).toFixed(2),
+      h: +toPct(h,    r.height).toFixed(2),
+      label: "New item"
+    };
+    drawn.push(json);
+    console.log('Hotspot JSON:', json);
+    start=null; rectEl=null;
+  });
+
+  // Helper: dump all
+  const dumpBtn=document.createElement('button');
+  dumpBtn.className='btn ghost'; dumpBtn.textContent='Copy hotspots to clipboard';
+  dumpBtn.style.marginTop='.6rem';
+  dumpBtn.addEventListener('click', ()=>{
+    const txt = JSON.stringify(drawn, null, 2);
+    navigator.clipboard.writeText(txt).then(()=> alert('Hotspots copied to clipboard.\nPaste into PUZZLES[].hotspots'));
+  });
+  wrap.parentElement.appendChild(dumpBtn);
+}
+
+// =============================
+// Service worker
+// =============================
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+
+// Start
 render();
 </script>
 </body>
 </html>
+``
