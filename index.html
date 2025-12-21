@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   manifest.json
   <title>Birthday Quest — Hidden Objects</title>
+  <meta name="theme-color" content="#007aff" />
   <style>
     :root { --primary:#007aff; --gray:#6b7280; --green:#10b981; --red:#ef4444; }
     * { box-sizing: border-box; }
@@ -19,21 +20,20 @@
     .card { border:1px solid #e5e7eb; border-radius:14px; padding:1rem; margin:1rem 0; box-shadow:0 1px 2px rgba(0,0,0,.04); }
     .title { display:flex; justify-content:space-between; align-items:center; gap:1rem; }
     .meta { font-size:.95rem; color:var(--gray); }
-    .imgWrap { position:relative; width:100%; max-width:900px; margin:.8rem auto; border-radius:12px; overflow:hidden; }
+    .imgWrap { position:relative; width:100%; max-width:900px; margin:.8rem auto; border-radius:12px; overflow:hidden; background:#f9fafb; }
     .imgWrap img { width:100%; display:block; touch-action:manipulation; }
-    .hotspot { position:absolute; border:2px dashed rgba(16,185,129,.0); /* invisible by default */ border-radius:8px; pointer-events:none; }
+    .hotspot { position:absolute; border:2px dashed rgba(16,185,129,.0); border-radius:8px; pointer-events:none; }
     .hotspot.found { border-color: rgba(16,185,129,.8); box-shadow: 0 0 0 3px rgba(16,185,129,.25) inset; }
     .label { display:inline-block; background:#00000099; color:#fff; border-radius:10px; padding:.2rem .5rem; font-size:.85rem; margin:.3rem .3rem 0 0; }
     .labels { margin-top:.4rem; }
     .btn { background:var(--primary); color:#fff; border:none; border-radius:12px; padding:.6rem 1rem; font-weight:600; cursor:pointer; }
     .btn.secondary { background:#6d28d9; }
     .btn.ghost { background:#f4f4f5; color:#111; }
-    .result { margin:.5rem 0; }
+    .result { margin:.6rem 0; }
     .success { color:var(--green); font-weight:600; }
     .warn { color:var(--red); }
     .nextPanel { margin-top:.8rem; padding:.8rem; background:#f9fafb; border:1px solid #e5e7eb; border-radius:12px; }
     footer { text-align:center; color:var(--gray); padding:2rem 1rem; }
-    /* author mode overlay rectangle */
     .drawRect { position:absolute; border:2px dashed #ff9800; background:rgba(255,152,0,.12); pointer-events:none; }
   </style>
 </head>
@@ -42,7 +42,7 @@
   <h1>🎉 Birthday Quest — Hidden Objects</h1>
   <p>Find the hidden items in each image to reveal the next location.</p>
   <div class="progress"><div class="bar" id="bar"></div></div>
-  <p class="meta">Tip: In Safari, tap <b>Share</b> → <b>Add to Home Screen</b> for an app-like experience.</p>
+  <p class="meta">Tip: In Safari, tap <b>Share</b> → <b>Add to Home Screen</b> for an app‑like experience.</p>
 </header>
 
 <main id="app"></main>
@@ -51,19 +51,14 @@
 <script>
 // =============================
 // CONFIG: puzzles (sequential)
-// Each puzzle uses an image and a list of hotspots defined
-// in percentage units relative to the image’s natural size.
 // =============================
 const PUZZLES = [
   {
     id:"villagegrind",
     name:"Hidden Objects — Coffee & Pastries",
-    img:"img/village-grind.jpg?v=2",
-    // After finding all, reveal this destination:
+    img:"img/village-grind.jpg?v=2",         // project-relative path
     reveal:{ title:"Next: The Village Grind", maps:"https://maps.apple.com/?q=The%20Village%20Grind" },
     hotspots:[
-      // Example rectangles (percent units): {x,y,w,h,label}
-      // Replace with author-mode output once you draw exact boxes.
       { x:36.0, y:62.5, w:9.0, h:12.0, label:"Coffee cup" },
       { x:22.5, y:48.0, w:12.5, h:10.0, label:"Pastry plate" }
     ]
@@ -71,7 +66,7 @@ const PUZZLES = [
   {
     id:"morninggoat",
     name:"Hidden Objects — Brunch Clues",
-    img:"/img/morning-goat.jpg",
+    img:"img/morning-goat.jpg",
     reveal:{ title:"Next: The Morning Goat", maps:"https://maps.apple.com/?q=The%20Morning%20Goat" },
     hotspots:[
       { x:18.0, y:54.0, w:10.0, h:10.0, label:"Goat icon" },
@@ -82,7 +77,7 @@ const PUZZLES = [
   {
     id:"paintingtwist",
     name:"Hidden Objects — Studio Details",
-    img:"/img/painting-with-a-twist.jpg",
+    img:"img/painting-with-a-twist.jpg",
     reveal:{ title:"Next: Painting with a Twist (1–3 PM)", maps:"https://maps.apple.com/?q=Painting%20With%20a%20Twist" },
     hotspots:[
       { x:44.0, y:40.0, w:10.0, h:12.0, label:"Paint brush" },
@@ -92,7 +87,7 @@ const PUZZLES = [
   {
     id:"swamprabbitcafe",
     name:"Hidden Objects — Café & Trail",
-    img:"/img/swamp-rabbit-cafe.jpg",
+    img:"img/swamp-rabbit-cafe.jpg",
     reveal:{ title:"Next: Swamp Rabbit Café & Trail", maps:"https://maps.apple.com/?q=Swamp%20Rabbit%20Cafe%20and%20Grocery" },
     hotspots:[
       { x:26.0, y:42.0, w:10.0, h:10.0, label:"Rabbit logo" },
@@ -103,7 +98,7 @@ const PUZZLES = [
   {
     id:"hollowedearth",
     name:"Hidden Objects — Clay & Wheels",
-    img:"/img/hollowed-earth.jpg",
+    img:"img/hollowed-earth.jpg",
     reveal:{ title:"Next: Hollowed Earth Pottery (6–7:30 PM)", maps:"https://maps.apple.com/?q=Hollowed%20Earth%20Pottery" },
     hotspots:[
       { x:42.0, y:58.0, w:12.0, h:12.0, label:"Potter’s wheel" },
@@ -113,7 +108,7 @@ const PUZZLES = [
   {
     id:"trio",
     name:"Hidden Objects — Brick Oven",
-    img:"/img/trio.jpg",
+    img:"img/trio.jpg",
     reveal:{ title:"Next: Trio — Family Favorite Dinner", maps:"https://maps.apple.com/?q=Trio%20A%20Brick%20Oven%20Cafe" },
     hotspots:[
       { x:60.0, y:40.0, w:14.0, h:12.0, label:"Brick oven" },
@@ -123,7 +118,7 @@ const PUZZLES = [
   {
     id:"humane",
     name:"Hidden Objects — Shelter Day",
-    img:"/img/humane-society.jpg",
+    img:"img/humane-society.jpg",
     reveal:{ title:"Finale: Greenville Humane Society (Sun 10:30 AM)", maps:"https://maps.apple.com/?q=Greenville%20Humane%20Society" },
     hotspots:[
       { x:24.0, y:52.0, w:12.0, h:10.0, label:"Leash" },
@@ -141,6 +136,12 @@ const writeDB = (d) => localStorage.setItem(DBKEY, JSON.stringify(d));
 const pctToPx = (pct, size) => pct/100 * size;
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 const authorMode = new URL(location.href).searchParams.get('author') === '1';
+
+// Resolve **project-relative** asset paths safely (GitHub Pages-friendly)
+function resolveAsset(path) {
+  const safe = path.startsWith('/') ? path.slice(1) : path; // strip leading slash if any
+  return new URL(safe, location.href).toString();
+}
 
 // =============================
 // RENDER CURRENT PUZZLE
@@ -164,13 +165,13 @@ function render(){
     </div>
     <div class="labels">${labelsHtml}</div>
     <div class="imgWrap">
-      ${p.img}
+      <img id="pimg" alt="Hidden objects image"/>
     </div>
     <div class="result" id="result"></div>
     <div class="nextPanel" id="nextPanel" style="display:none">
       <p class="success">All items found! 🎊</p>
       <p><strong>${p.reveal.title}</strong></p>
-      <p><a class="btn"s}Open in Apple Maps</a></p>
+      <p>${p.reveal.maps}Open in Apple Maps</a></p>
       ${idx < PUZZLES.length-1 ? `<button class="btn secondary" id="nextBtn">Reveal Next Image</button>` : `<p>💜 You reached the finale! Have an amazing day.</p>`}
     </div>
     ${authorMode ? `<p class="meta">Author mode: drag to draw rectangles; see console for JSON.</p>` : ''}
@@ -181,6 +182,21 @@ function render(){
   const result = card.querySelector('#result');
   const nextPanel = card.querySelector('#nextPanel');
 
+  // *** Critical line: set src with safe project-relative resolution ***
+  img.src = resolveAsset(p.img);
+
+  // Diagnostics: show success or failure and the exact URL
+  img.addEventListener('load', () => {
+    console.log('Loaded image:', img.src);
+  });
+  img.addEventListener('error', () => {
+    console.error('Image failed:', img.src);
+    result.innerHTML = `<p class="warn">
+      Image failed to load: <code>${img.src}</code>.<br>
+      If this is a GitHub Pages <em>project</em> site, ensure your path is relative (e.g., <code>img/…</code>) and the file exists in the repository.
+    </p>`;
+  });
+
   img.addEventListener('load', () => {
     const rect = img.getBoundingClientRect();
     const wrap = img.parentElement;
@@ -189,7 +205,7 @@ function render(){
     const s = readDB();
     const fset = s.found[p.id]?.set || new Array(p.hotspots.length).fill(false);
 
-    // Place (invisible) hotspot overlays for "found" visualization
+    // Place invisible hotspot boxes (turn green when found)
     p.hotspots.forEach((h, i) => {
       const hs = document.createElement('div'); hs.className='hotspot';
       const x = pctToPx(h.x, rect.width), y = pctToPx(h.y, rect.height);
@@ -199,21 +215,19 @@ function render(){
       wrap.appendChild(hs);
     });
 
-    // Click/tap detection
+    // Tap/click detection
     wrap.addEventListener('click', (ev) => {
-      if (authorMode) return; // drawing handled separately
+      if (authorMode) return;
       const r = img.getBoundingClientRect();
       const cx = ev.clientX - r.left; const cy = ev.clientY - r.top;
       const { hitIndex } = detectHit(p.hotspots, r.width, r.height, cx, cy, fset);
       if (hitIndex !== -1) {
         fset[hitIndex] = true;
-        // mark visual
         const hs = wrap.querySelectorAll('.hotspot')[hitIndex];
         hs.classList.add('found');
         saveFound(p.id, fset);
         result.innerHTML = `<p class="success">Found: ${p.hotspots[hitIndex].label}</p>`;
         confetti(10);
-        // check completion
         if (fset.every(Boolean)) {
           markComplete(p.id);
           nextPanel.style.display = 'block';
@@ -236,15 +250,12 @@ function render(){
 }
 
 function detectHit(hotspots, w, h, cx, cy, fset){
-  // Find first hotspot not yet found that contains the click point
   for (let i=0; i<hotspots.length; i++){
     if (fset[i]) continue;
     const hs = hotspots[i];
     const rx = pctToPx(hs.x, w), ry = pctToPx(hs.y, h);
     const rw = pctToPx(hs.w, w), rh = pctToPx(hs.h, h);
-    if (cx >= rx && cx <= rx+rw && cy >= ry && cy <= ry+rh) {
-      return { hitIndex:i };
-    }
+    if (cx >= rx && cx <= rx+rw && cy >= ry && cy <= ry+rh) return { hitIndex:i };
   }
   return { hitIndex:-1 };
 }
@@ -265,7 +276,7 @@ function markComplete(id){
 }
 
 // =============================
-// CONFETTI (simple emoji)
+// CONFETTI (emoji)
 // =============================
 function confetti(n=18){
   for(let i=0;i<n;i++){
@@ -280,7 +291,6 @@ function confetti(n=18){
 
 // =============================
 // AUTHOR MODE — draw rectangles
-// Drag to draw hotspot boxes; logs JSON with percent coords.
 // =============================
 function enableAuthorDraw(wrap, img){
   let start=null, rectEl=null;
@@ -315,32 +325,29 @@ function enableAuthorDraw(wrap, img){
       h: +toPct(h,    r.height).toFixed(2),
       label: "New item"
     };
-    drawn.push(json);
     console.log('Hotspot JSON:', json);
     start=null; rectEl=null;
   });
 
-  // Helper: dump all
   const dumpBtn=document.createElement('button');
-  dumpBtn.className='btn ghost'; dumpBtn.textContent='Copy hotspots to clipboard';
+  dumpBtn.className='btn ghost'; dumpBtn.textContent='Copy hotspots to clipboard (console)';
   dumpBtn.style.marginTop='.6rem';
   dumpBtn.addEventListener('click', ()=>{
-    const txt = JSON.stringify(drawn, null, 2);
-    navigator.clipboard.writeText(txt).then(()=> alert('Hotspots copied to clipboard.\nPaste into PUZZLES[].hotspots'));
+    alert('Hotspots are logged in console as you draw. Copy/paste them into PUZZLES[].hotspots.');
   });
   wrap.parentElement.appendChild(dumpBtn);
 }
 
 // =============================
-// Service worker
+// Service worker registration
+// (Re-enable once images render correctly)
 // =============================
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js'); // keep as-is; your sw.js now uses relative paths
+}
 
 // Start
 render();
 </script>
 </body>
 </html>
-``
-
-
