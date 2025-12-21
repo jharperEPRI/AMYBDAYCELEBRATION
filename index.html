@@ -59,6 +59,7 @@ const PUZZLES = [
     img:"img/village-grind.jpg?v=2",         // project-relative path
     reveal:{ title:"Next: The Village Grind", maps:"https://maps.apple.com/?q=The%20Village%20Grind" },
     hotspots:[
+      
       { x:36.0, y:62.5, w:9.0, h:12.0, label:"pancake" },
       { x:22.5, y:48.0, w:12.5, h:10.0, label:"sippy cup" }
     ]
@@ -289,35 +290,66 @@ function confetti(n=18){
   }
 }
 
+
+
 // =============================
-// AUTHOR MODE — draw rectangles
+// AUTHOR MODE — draw rectangles & copy JSON
 // =============================
 function enableAuthorDraw(wrap, img){
-  let start=null, rectEl=null;
-  const toPct = (px, size) => (px/size)*100;
-  const getImgRect = () => img.getBoundingClientRect();
+  let start = null, rectEl = null;
+
+  // Store all rectangles drawn on THIS image
+  // Each rect will be captured in percent units (responsive)
   const drawn = [];
-  wrap.addEventListener('mousedown', (e)=>{
-    const r=getImgRect(); start={ x:e.clientX - r.left, y:e.clientY - r.top };
-    rectEl=document.createElement('div'); rectEl.className='drawRect';
-    rectEl.style.left=start.x+'px'; rectEl.style.top=start.y+'px';
+
+  const toPct = (px, size) => (px / size) * 100;
+  const getImgRect = () => img.getBoundingClientRect();
+
+  // Start drawing
+  wrap.addEventListener('mousedown', (e) => {
+    const r = getImgRect();
+    start = { x: e.clientX - r.left, y: e.clientY - r.top };
+
+    rectEl = document.createElement('div');
+    rectEl.className = 'drawRect';
+    rectEl.style.left = start.x + 'px';
+    rectEl.style.top  = start.y + 'px';
     wrap.appendChild(rectEl);
   });
-  window.addEventListener('mousemove', (e)=>{
-    if(!start||!rectEl) return;
-    const r=getImgRect();
-    const cx=e.clientX - r.left, cy=e.clientY - r.top;
-    const w=cx - start.x, h=cy - start.y;
-    rectEl.style.width=Math.abs(w)+'px';
-    rectEl.style.height=Math.abs(h)+'px';
-    rectEl.style.left=(w<0? cx : start.x)+'px';
-    rectEl.style.top=(h<0? cy : start.y)+'px';
+
+  // Update rectangle as you drag
+  window.addEventListener('mousemove', (e) => {
+    if (!start || !rectEl) return;
+    const r = getImgRect();
+    const cx = e.clientX - r.left;
+    const cy = e.clientY - r.top;
+
+    const w = cx - start.x;
+    const h = cy - start.y;
+
+    rectEl.style.width  = Math.abs(w) + 'px';
+    rectEl.style.height = Math.abs(h) + 'px';
+    rectEl.style.left   = (w < 0 ? cx : start.x) + 'px';
+    rectEl.style.top    = (h < 0 ? cy : start.y) + 'px';
   });
-  window.addEventListener('mouseup', (e)=>{
-    if(!start||!rectEl) return;
-    const r=getImgRect();
-    const left=parseFloat(rectEl.style.left), top=parseFloat(rectEl.style.top);
-    const w=parseFloat(rectEl.style.width), h=parseFloat(rectEl.style.height);
+
+  // Finish rectangle and push JSON
+  window.addEventListener('mouseup', () => {
+    if (!start || !rectEl) return;
+    const r = getImgRect();
+
+    const left = parseFloat(rectEl.style.left);
+    const top  = parseFloat(rectEl.style.top);
+    const w    = parseFloat(rectEl.style.width);
+    const h    = parseFloat(rectEl.style.height);
+
+    // Skip zero-size rectangles
+    if (w <= 0 || h <= 0) {
+      rectEl.remove();
+      start = null; rectEl = null;
+      return;
+    }
+
     const json = {
       x: +toPct(left, r.width).toFixed(2),
       y: +toPct(top,  r.height).toFixed(2),
@@ -325,18 +357,61 @@ function enableAuthorDraw(wrap, img){
       h: +toPct(h,    r.height).toFixed(2),
       label: "New item"
     };
-    console.log('Hotspot JSON:', json);
-    start=null; rectEl=null;
+
+    drawn.push(json);
+    console.log('Hotspot JSON added:', json);
+
+    // Reset
+    start = null; rectEl = null;
   });
 
-  const dumpBtn=document.createElement('button');
-  dumpBtn.className='btn ghost'; dumpBtn.textContent='Copy hotspots to clipboard (console)';
-  dumpBtn.style.marginTop='.6rem';
-  dumpBtn.addEventListener('click', ()=>{
-    alert('Hotspots are logged in console as you draw. Copy/paste them into PUZZLES[].hotspots.');
+  // --- Copy button (actually copies!) ---
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'btn ghost';     // gray style is fine; it’s just a secondary button
+  copyBtn.textContent = 'Copy hotspots to clipboard';
+  copyBtn.style.marginTop = '.6rem';
+
+  copyBtn.addEventListener('click', async () => {
+    // Build pretty JSON (indented)
+    const text = JSON.stringify(drawn, null, 2);
+
+    if (!text || drawn.length === 0) {
+      alert('No hotspots drawn yet.\nDrag to draw rectangles on the image, then click Copy.');
+      return;
+    }
+
+    try {
+      // Clipboard API requires HTTPS and user gesture — both satisfied here.
+      await navigator.clipboard.writeText(text);
+      alert(`Copied ${drawn.length} hotspot(s) to clipboard.\nPaste into PUZZLES[].hotspots in index.html.`);
+      console.log('Copied hotspots JSON:\n', text);
+    } catch (err) {
+      console.error('Clipboard write failed:', err);
+      alert('Copy failed. As a fallback, open DevTools → Console and copy the logged JSON there.');
+      console.log('Hotspots (fallback):\n', text);
+    }
   });
-  wrap.parentElement.appendChild(dumpBtn);
+
+  // Add a small "Reset" button to clear & redraw if needed
+  const resetBtn = document.createElement('button');
+  resetBtn.className = 'btn ghost';
+  resetBtn.textContent = 'Reset drawn hotspots';
+  resetBtn.style.marginLeft = '.5rem';
+  resetBtn.addEventListener('click', () => {
+    drawn.length = 0;
+    // Remove any temporary author rectangles from the UI
+    [...wrap.querySelectorAll('.drawRect')].forEach(el => el.remove());
+    alert('Cleared current hotspots for this image. Draw new rectangles and copy again.');
+  });
+
+  // Mount buttons
+  const controls = document.createElement('div');
+  controls.style.marginTop = '.6rem';
+  controls.appendChild(copyBtn);
+  controls.appendChild(resetBtn);
+  wrap.parentElement.appendChild(controls);
 }
+
 
 // =============================
 // Service worker registration
@@ -351,4 +426,5 @@ render();
 </script>
 </body>
 </html>
+
 
