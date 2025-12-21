@@ -34,7 +34,21 @@
     .warn { color:var(--red); }
     .nextPanel { margin-top:.8rem; padding:.8rem; background:#f9fafb; border:1px solid #e5e7eb; border-radius:12px; }
     footer { text-align:center; color:var(--gray); padding:2rem 1rem; }
-    .drawRect { position:absolute; border:2px dashed #ff9800; background:rgba(255,152,0,.12); pointer-events:none; }
+
+    /* Author-mode overlay & rectangle */
+    .drawLayer {
+      position: absolute;
+      inset: 0;
+      cursor: crosshair;
+      touch-action: none;
+      user-select: none;
+    }
+    .drawRect {
+      position: absolute;
+      border: 2px dashed #ff9800;
+      background: rgba(255, 152, 0, 0.12);
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
@@ -56,86 +70,15 @@ const PUZZLES = [
   {
     id:"villagegrind",
     name:"Hidden Objects — Coffee & Pastries",
-    img:"img/village-grind.jpg?v=2",         // project-relative path
+    img:"img/village-grind.jpg?v=2",      // project-relative; safe for GitHub Pages
     reveal:{ title:"Next: The Village Grind", maps:"https://maps.apple.com/?q=The%20Village%20Grind" },
     hotspots:[
-
-[
-  {
-    "x": 54.08,
-    "y": 48.89,
-    "w": null,
-    "h": null,
-    "label": "New item"
-  }
-]
-      
-      { x:36.0, y:62.5, w:9.0, h:12.0, label:"pancake" },
-      { x:56.99, y:76.15, w:15.15, h:24.14, label:"sippy cup" }
-    ]
-  },
-  {
-    id:"morninggoat",
-    name:"Hidden Objects — Brunch Clues",
-    img:"img/morning-goat.jpg",
-    reveal:{ title:"Next: The Morning Goat", maps:"https://maps.apple.com/?q=The%20Morning%20Goat" },
-    hotspots:[
-      { x:18.0, y:54.0, w:10.0, h:10.0, label:"Goat icon" },
-      { x:58.0, y:38.0, w:12.0, h:9.0,  label:"Latte art" },
-      { x:73.0, y:66.0, w:8.0,  h:7.0,  label:"Menu header" }
-    ]
-  },
-  {
-    id:"paintingtwist",
-    name:"Hidden Objects — Studio Details",
-    img:"img/painting-with-a-twist.jpg",
-    reveal:{ title:"Next: Painting with a Twist (1–3 PM)", maps:"https://maps.apple.com/?q=Painting%20With%20a%20Twist" },
-    hotspots:[
-      { x:44.0, y:40.0, w:10.0, h:12.0, label:"Paint brush" },
-      { x:64.0, y:55.0, w:12.0, h:10.0, label:"Palette" }
-    ]
-  },
-  {
-    id:"swamprabbitcafe",
-    name:"Hidden Objects — Café & Trail",
-    img:"img/swamp-rabbit-cafe.jpg",
-    reveal:{ title:"Next: Swamp Rabbit Café & Trail", maps:"https://maps.apple.com/?q=Swamp%20Rabbit%20Cafe%20and%20Grocery" },
-    hotspots:[
-      { x:26.0, y:42.0, w:10.0, h:10.0, label:"Rabbit logo" },
-      { x:70.0, y:60.0, w:11.0, h:11.0, label:"Bike wheel" },
-      { x:52.0, y:28.0, w:14.0, h:8.0,  label:"Trail sign" }
-    ]
-  },
-  {
-    id:"hollowedearth",
-    name:"Hidden Objects — Clay & Wheels",
-    img:"img/hollowed-earth.jpg",
-    reveal:{ title:"Next: Hollowed Earth Pottery (6–7:30 PM)", maps:"https://maps.apple.com/?q=Hollowed%20Earth%20Pottery" },
-    hotspots:[
-      { x:42.0, y:58.0, w:12.0, h:12.0, label:"Potter’s wheel" },
-      { x:18.0, y:38.0, w:10.0, h:10.0, label:"Glaze shelf" }
-    ]
-  },
-  {
-    id:"trio",
-    name:"Hidden Objects — Brick Oven",
-    img:"img/trio.jpg",
-    reveal:{ title:"Next: Trio — Family Favorite Dinner", maps:"https://maps.apple.com/?q=Trio%20A%20Brick%20Oven%20Cafe" },
-    hotspots:[
-      { x:60.0, y:40.0, w:14.0, h:12.0, label:"Brick oven" },
-      { x:32.0, y:62.0, w:10.0, h:10.0, label:"Pizza paddle" }
-    ]
-  },
-  {
-    id:"humane",
-    name:"Hidden Objects — Shelter Day",
-    img:"img/humane-society.jpg",
-    reveal:{ title:"Finale: Greenville Humane Society (Sun 10:30 AM)", maps:"https://maps.apple.com/?q=Greenville%20Humane%20Society" },
-    hotspots:[
-      { x:24.0, y:52.0, w:12.0, h:10.0, label:"Leash" },
-      { x:68.0, y:48.0, w:12.0, h:12.0, label:"Water bowl" }
+      // Replace these after author-mode drawing
+      { x:36.0, y:62.5, w:9.0, h:12.0, label:"Coffee cup" },
+      { x:22.5, y:48.0, w:12.5, h:10.0, label:"Pastry plate" }
     ]
   }
+  // Add your other stops here (Morning Goat, Painting with a Twist, etc.)
 ];
 
 // =============================
@@ -185,7 +128,7 @@ function render(){
       <p>${p.reveal.maps}Open in Apple Maps</a></p>
       ${idx < PUZZLES.length-1 ? `<button class="btn secondary" id="nextBtn">Reveal Next Image</button>` : `<p>💜 You reached the finale! Have an amazing day.</p>`}
     </div>
-    ${authorMode ? `<p class="meta">Author mode: drag to draw rectangles; see console for JSON.</p>` : ''}
+    ${authorMode ? `<p class="meta">Author mode: drag rectangles on the overlay; click Copy to clipboard.</p>` : ''}
   `;
   app.appendChild(card);
 
@@ -193,30 +136,28 @@ function render(){
   const result = card.querySelector('#result');
   const nextPanel = card.querySelector('#nextPanel');
 
-  // *** Critical line: set src with safe project-relative resolution ***
+  // *** Critical: set src using safe project-relative resolution ***
   img.src = resolveAsset(p.img);
 
-  // Diagnostics: show success or failure and the exact URL
-  img.addEventListener('load', () => {
-    console.log('Loaded image:', img.src);
-  });
+  // Diagnostics
+  img.addEventListener('load', () => { console.log('Loaded image:', img.src); });
   img.addEventListener('error', () => {
     console.error('Image failed:', img.src);
     result.innerHTML = `<p class="warn">
       Image failed to load: <code>${img.src}</code>.<br>
-      If this is a GitHub Pages <em>project</em> site, ensure your path is relative (e.g., <code>img/…</code>) and the file exists in the repository.
+      Ensure the file exists at <code>img/…</code> (no leading slash) in your repo.
     </p>`;
   });
 
+  // Once image loads, set up hotspots + author layer
   img.addEventListener('load', () => {
     const rect = img.getBoundingClientRect();
     const wrap = img.parentElement;
 
-    // Restore found state for current puzzle
     const s = readDB();
     const fset = s.found[p.id]?.set || new Array(p.hotspots.length).fill(false);
 
-    // Place invisible hotspot boxes (turn green when found)
+    // Show current (invisible) hotspots; turn green when found
     p.hotspots.forEach((h, i) => {
       const hs = document.createElement('div'); hs.className='hotspot';
       const x = pctToPx(h.x, rect.width), y = pctToPx(h.y, rect.height);
@@ -226,9 +167,9 @@ function render(){
       wrap.appendChild(hs);
     });
 
-    // Tap/click detection
+    // Tap/click detection on the image (normal play mode)
     wrap.addEventListener('click', (ev) => {
-      if (authorMode) return;
+      if (authorMode) return; // author mode draws, play mode clicks
       const r = img.getBoundingClientRect();
       const cx = ev.clientX - r.left; const cy = ev.clientY - r.top;
       const { hitIndex } = detectHit(p.hotspots, r.width, r.height, cx, cy, fset);
@@ -248,7 +189,7 @@ function render(){
       }
     });
 
-    // Author mode: draw rectangles, export JSON percentage coords
+    // AUTHOR MODE: overlay layer to capture drag and copy JSON
     if (authorMode) enableAuthorDraw(wrap, img);
   });
 
@@ -300,119 +241,103 @@ function confetti(n=18){
   }
 }
 
-
+// =============================
+// AUTHOR MODE — overlay draw + clipboard
+// =============================
 function enableAuthorDraw(wrap, img){
+  // transparent overlay above the image
+  const layer = document.createElement('div');
+  layer.className = 'drawLayer';
+  wrap.appendChild(layer);
+
   const drawn = [];
-  let start = null;      // { x, y, rect }
-  let rectEl = null;     // visual rectangle overlay
+  let start = null;     // {x,y,rect}
+  let rectEl = null;
 
   const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
   const toPct = (px, size) => ((px / size) * 100);
-  const getImgRect = () => img.getBoundingClientRect();
+  const getRect = () => layer.getBoundingClientRect();
 
-  // --- event helpers (mouse + touch) ---
-  function pointFromMouse(e) {
-    const r = getImgRect();
-    return { x: clamp(e.clientX - r.left, 0, r.width),
-             y: clamp(e.clientY - r.top,  0, r.height),
-             rect: r };
+  function ptMouse(e){
+    const r = getRect();
+    return { x: clamp(e.clientX - r.left, 0, r.width), y: clamp(e.clientY - r.top, 0, r.height), rect:r };
   }
-  function pointFromTouch(e) {
+  function ptTouch(e){
     const t = e.touches[0] || e.changedTouches[0];
-    const r = getImgRect();
-    return { x: clamp(t.clientX - r.left, 0, r.width),
-             y: clamp(t.clientY - r.top,  0, r.height),
-             rect: r };
+    const r = getRect();
+    return { x: clamp(t.clientX - r.left, 0, r.width), y: clamp(t.clientY - r.top, 0, r.height), rect:r };
   }
 
-  // --- START: mousedown / touchstart ---
-  function beginDraw(x, y, rect) {
-    start = { x, y, rect };
+  function begin(x,y,rect){
+    start = { x,y,rect };
     rectEl = document.createElement('div');
     rectEl.className = 'drawRect';
     rectEl.style.left = `${x}px`;
     rectEl.style.top  = `${y}px`;
     rectEl.style.width  = `0px`;
     rectEl.style.height = `0px`;
-    wrap.appendChild(rectEl);
+    layer.appendChild(rectEl);
   }
-
-  wrap.addEventListener('mousedown', (e) => {
+  layer.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
-    const p = pointFromMouse(e);
-    beginDraw(p.x, p.y, p.rect);
-    // listen on window so you can drag outside the image and still resize
+    const p = ptMouse(e);
+    begin(p.x, p.y, p.rect);
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup',   onMouseUp, { once:true });
   });
+  function onMouseMove(e){
+    if (!start || !rectEl) return;
+    const p = ptMouse(e); update(p);
+  }
+  function onMouseUp(){
+    finish();
+    window.removeEventListener('mousemove', onMouseMove);
+  }
 
-  wrap.addEventListener('touchstart', (e) => {
-    if (e.touches.length > 1) return; // single-touch only
-    const p = pointFromTouch(e);
-    beginDraw(p.x, p.y, p.rect);
+  layer.addEventListener('touchstart', (e) => {
+    if (e.touches.length > 1) return;
+    const p = ptTouch(e);
+    begin(p.x, p.y, p.rect);
     window.addEventListener('touchmove', onTouchMove, { passive:false });
     window.addEventListener('touchend',  onTouchEnd,  { once:true });
     window.addEventListener('touchcancel', cancelTouch, { once:true });
   }, { passive:true });
-
-  // --- MOVE: mousemove / touchmove ---
-  function onMouseMove(e){
-    if (!start || !rectEl) return;
-    const p = pointFromMouse(e);
-    updateRect(p);
-  }
   function onTouchMove(e){
     if (!start || !rectEl) return;
-    e.preventDefault(); // critical on iOS to stop page scroll while drawing
-    const p = pointFromTouch(e);
-    updateRect(p);
+    e.preventDefault();
+    const p = ptTouch(e); update(p);
+  }
+  function onTouchEnd(){
+    finish();
+    window.removeEventListener('touchmove', onTouchMove);
+  }
+  function cancelTouch(){
+    if (rectEl) rectEl.remove();
+    start = null; rectEl = null;
+    window.removeEventListener('touchmove', onTouchMove);
   }
 
-  function updateRect(p){
+  function update(p){
     const w = p.x - start.x;
     const h = p.y - start.y;
-
-    // choose top-left based on drag direction; clamp within image rect
     const left = clamp(w < 0 ? p.x : start.x, 0, p.rect.width);
     const top  = clamp(h < 0 ? p.y : start.y, 0, p.rect.height);
-
     const width  = clamp(Math.abs(w), 0, p.rect.width  - left);
     const height = clamp(Math.abs(h), 0, p.rect.height - top);
-
     rectEl.style.left   = `${left}px`;
     rectEl.style.top    = `${top}px`;
     rectEl.style.width  = `${width}px`;
     rectEl.style.height = `${height}px`;
   }
 
-  // --- END: mouseup / touchend ---
-  function onMouseUp(e){
-    finishRect();
-    window.removeEventListener('mousemove', onMouseMove);
-  }
-  function onTouchEnd(e){
-    finishRect();
-    window.removeEventListener('touchmove', onTouchMove);
-  }
-  function cancelTouch(){
-    // cancel drawing
-    if (rectEl) rectEl.remove();
-    start = null; rectEl = null;
-    window.removeEventListener('touchmove', onTouchMove);
-  }
-
-  function finishRect(){
+  function finish(){
     if (!start || !rectEl) return;
-    const r = getImgRect();
-
+    const r = getRect();
     const leftPx = Number.parseFloat(rectEl.style.left)   || 0;
     const topPx  = Number.parseFloat(rectEl.style.top)    || 0;
     const wPx    = Number.parseFloat(rectEl.style.width)  || 0;
     const hPx    = Number.parseFloat(rectEl.style.height) || 0;
-
-    // discard true zero-size rectangles (tap without drag)
     if (wPx < 1 || hPx < 1) { rectEl.remove(); start=null; rectEl=null; return; }
-
     const json = {
       x: +toPct(leftPx, r.width).toFixed(2),
       y: +toPct(topPx,  r.height).toFixed(2),
@@ -420,14 +345,12 @@ function enableAuthorDraw(wrap, img){
       h: +toPct(hPx,    r.height).toFixed(2),
       label: "New item"
     };
-
     drawn.push(json);
     console.log('Hotspot JSON added:', json);
-
     start = null; rectEl = null;
   }
 
-  // --- Controls: Copy + Reset ---
+  // Controls: Copy + Reset
   const copyBtn = document.createElement('button');
   copyBtn.className = 'btn ghost';
   copyBtn.textContent = 'Copy hotspots to clipboard';
@@ -435,7 +358,7 @@ function enableAuthorDraw(wrap, img){
   copyBtn.addEventListener('click', async () => {
     const text = JSON.stringify(drawn, null, 2);
     if (!text || drawn.length === 0) {
-      alert('No hotspots drawn yet.\nDrag to draw rectangles on the image, then click Copy.');
+      alert('No hotspots drawn yet.\nDrag to draw rectangles on the overlay, then click Copy.');
       return;
     }
     try {
@@ -455,7 +378,7 @@ function enableAuthorDraw(wrap, img){
   resetBtn.style.marginLeft = '.5rem';
   resetBtn.addEventListener('click', () => {
     drawn.length = 0;
-    [...wrap.querySelectorAll('.drawRect')].forEach(el => el.remove());
+    [...layer.querySelectorAll('.drawRect')].forEach(el => el.remove());
     alert('Cleared current hotspots. Draw new rectangles and copy again.');
   });
 
@@ -466,16 +389,11 @@ function enableAuthorDraw(wrap, img){
   wrap.parentElement.appendChild(controls);
 }
 
-
-
-
-
 // =============================
 // Service worker registration
-// (Re-enable once images render correctly)
 // =============================
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js'); // keep as-is; your sw.js now uses relative paths
+  navigator.serviceWorker.register('sw.js');
 }
 
 // Start
@@ -483,8 +401,3 @@ render();
 </script>
 </body>
 </html>
-
-
-
-
-
