@@ -1,62 +1,439 @@
 
-// sw.js
-const CACHE = 'quest-2026-v4'; // bump version to purge old caches
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  manifest.json
+  <title>Birthday Quest — Hidden Objects</title>
+  <meta name="theme-color" content="#007aff" />
+  <style>
+    :root { --primary:#007aff; --gray:#6b7280; --green:#10b981; --red:#ef4444; }
+    * { box-sizing: border-box; }
+    body { margin:0; font:16px/1.6 system-ui, -apple-system, Segoe UI, Roboto; color:#111; background:#fff; }
+    header { padding:1rem; text-align:center; border-bottom:1px solid #eee; }
+    header h1 { margin:.2rem 0; }
+    header p { color:var(--gray); margin:.2rem 0 .6rem; }
+    .progress { width:92%; max-width:720px; margin:.5rem auto 1rem; background:#f4f4f5; border-radius:999px; overflow:hidden; height:10px; }
+    .bar { height:100%; background:linear-gradient(90deg, var(--primary), #34d399); width:0%; transition:width .4s; }
+    main { max-width:980px; margin:0 auto; padding:1rem; }
+    .card { border:1px solid #e5e7eb; border-radius:14px; padding:1rem; margin:1rem 0; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+    .title { display:flex; justify-content:space-between; align-items:center; gap:1rem; }
+    .meta { font-size:.95rem; color:var(--gray); }
+    .imgWrap { position:relative; width:100%; max-width:900px; margin:.8rem auto; border-radius:12px; overflow:hidden; background:#f9fafb; }
+    .imgWrap img { width:100%; display:block; touch-action:manipulation; }
+    .hotspot { position:absolute; border:2px dashed rgba(16,185,129,.0); border-radius:8px; pointer-events:none; }
+    .hotspot.found { border-color: rgba(16,185,129,.8); box-shadow: 0 0 0 3px rgba(16,185,129,.25) inset; }
+    .label { display:inline-block; background:#00000099; color:#fff; border-radius:10px; padding:.2rem .5rem; font-size:.85rem; margin:.3rem .3rem 0 0; }
+    .labels { margin-top:.4rem; }
+    .btn { background:var(--primary); color:#fff; border:none; border-radius:12px; padding:.6rem 1rem; font-weight:600; cursor:pointer; }
+    .btn.secondary { background:#6d28d9; }
+    .btn.ghost { background:#f4f4f5; color:#111; }
+    .tools { margin-top:.6rem; }
 
-const CORE_ASSETS = [
-  'index.html',
-  'manifest.json',
-  'sw.js',
-  'icon-192.png',
-  'icon-512.png'
+    .result { margin:.6rem 0; }
+    .success { color:var(--green); font-weight:600; }
+    .warn { color:var(--red); }
+    .nextPanel { margin-top:.8rem; padding:.8rem; background:#f9fafb; border:1px solid #e5e7eb; border-radius:12px; }
+
+    footer { text-align:center; color:#6b7280; padding:2rem 1rem; }
+
+    /* Author-mode overlay & rectangle */
+    .drawLayer {
+      position: absolute;
+      inset: 0;
+      cursor: crosshair;
+      touch-action: none;
+      user-select: none;
+    }
+    .drawRect {
+      position: absolute;
+      border: 2px dashed #ff9800;
+      background: rgba(255, 152, 0, 0.12);
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>🎉 Birthday Quest — Hidden Objects</h1>
+  <p class="meta">
+    Find the hidden items in each image to reveal the next location.
+    <span style="margin-left:.6rem">#Start over</a></span>
+  </p>
+  <div class="progress"><div class="bar" id="bar"></div></div>
+  <p class="meta">Tip: In Safari, tap <b>Share</b> → <b>Add to Home Screen</b> for an app‑like experience.</p>
+</header>
+
+<main id="app"></main>
+<footer>Made with ❤️ by Jim & family</footer>
+
+<script>
+/* ===========================
+   CONFIG: puzzles (sequential)
+   =========================== */
+const PUZZLES = [
+  {
+    id:"villagegrind",
+    name:"Hidden Objects — Coffee & Pastries",
+    img:"img/village-grind.jpg?v=2",      // project-relative; safe for GitHub Pages
+    reveal:{ title:"Next: The Village Grind", maps:"https://maps.apple.com/?q=The%20Village%20Grind" },
+    hotspots:[
+      // Replace these after author-mode drawing
+      { x:36.0, y:62.5, w:9.0, h:12.0, label:"Coffee cup" },
+      { x:22.5, y:48.0, w:12.5, h:10.0, label:"Pastry plate" }
+    ]
+  }
+  // Add your other stops here (Morning Goat, Painting with a Twist, etc.)
 ];
 
-// Install: pre-cache core assets
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE)
-      .then(cache => cache.addAll(CORE_ASSETS))
-      .then(() => self.skipWaiting())
-  );
-});
+/* ===========================
+   STATE & UTILS
+   =========================== */
+const DBKEY = 'quest2026-hidden';
+const readDB = () => { try { return JSON.parse(localStorage.getItem(DBKEY))||{ idx:0, found:{} }; } catch(e){ return { idx:0, found:{} }; } };
+const writeDB = (d) => localStorage.setItem(DBKEY, JSON.stringify(d));
+const pctToPx = (pct, size) => pct/100 * size;
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+const authorMode = new URL(location.href).searchParams.get('author') === '1';
 
-// Activate: clean up old caches and take control
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.map(k => (k !== CACHE ? caches.delete(k) : null)))
-    ).then(() => self.clients.claim())
-  );
-});
+// Resolve **project-relative** asset paths safely (GitHub Pages-friendly)
+function resolveAsset(path) {
+  const safe = path.startsWith('/') ? path.slice(1) : path; // strip leading slash if any
+  return new URL(safe, location.href).toString();
+}
 
-// Fetch: network-first for navigations; cache-first for assets
-self.addEventListener('fetch', (event) => {
-  const req = event.request;
+/* ===========================
+   RESET HELPERS
+   =========================== */
+function resetCurrentPuzzle(p) {
+  const s = readDB();
+  if (s.found && s.found[p.id]) delete s.found[p.id];
+  writeDB(s);
+  render();
+}
+function resetAllProgress() {
+  localStorage.removeItem(DBKEY);
+  render();
+}
 
-  // Handle navigation requests (HTML pages)
-  if (req.mode === 'navigate') {
-    event.respondWith(
-      fetch(req).then(res => {
-        const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(req, copy));
-        return res;
-      }).catch(() => caches.match(req) || caches.match('index.html'))
-    );
-    return;
+/* ===========================
+   RENDER CURRENT PUZZLE
+   =========================== */
+function render(){
+  const state = readDB();
+  const idx = clamp(state.idx, 0, PUZZLES.length-1);
+  const p = PUZZLES[idx];
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+
+  const completed = Object.keys(state.found).filter(id => state.found[id]?.all).length;
+  document.getElementById('bar').style.width = Math.round(completed/PUZZLES.length*100) + '%';
+
+  const card = document.createElement('div'); card.className='card';
+  const labelsHtml = p.hotspots.map(h => `<span class="label">${h.label}</span>`).join('');
+  card.innerHTML = `
+    <div class="title">
+      <h2>${p.name}</h2>
+      <span class="meta">${idx+1} / ${PUZZLES.length}</span>
+    </div>
+    <div class="labels">${labelsHtml}</div>
+    <div class="imgWrap">
+      <img id="pimg" alt="Hidden objects image"/>
+    </div>
+    <div class="tools">
+      <button class="btn ghost" id="resetCurrentAbove">Reset this image</button>
+      <button class="btn ghost" id="resetAllAbove" style="margin-left:.5rem">Reset all</button>
+    </div>
+    <div class="result" id="result"></div>
+    <div class="nextPanel" id="nextPanel" style="display:none">
+      <p class="success">All items found! 🎊</p>
+      <p><strong>${p.reveal.title}</strong></p>
+      <p>${p.reveal.maps}Open in Apple Maps</a></p>
+      ${idx < PUZZLES.length-1 ? `<button class="btn secondary" id="nextBtn">Reveal Next Image</button>` : `<p>💜 You reached the finale! Have an amazing day.</p>`}
+    </div>
+  `;
+  app.appendChild(card);
+
+  // Header "Start over" link
+  document.getElementById('startOver')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    resetAllProgress();
+  });
+
+  const img = card.querySelector('#pimg');
+  const result = card.querySelector('#result');
+  const nextPanel = card.querySelector('#nextPanel');
+
+  // *** Critical: set src using safe project-relative resolution ***
+  img.src = resolveAsset(p.img);
+
+  // Diagnostics
+  img.addEventListener('load', () => { console.log('Loaded image:', img.src); });
+  img.addEventListener('error', () => {
+    console.error('Image failed:', img.src);
+    result.innerHTML = `<p class="warn">
+      Image failed to load: <code>${img.src}</code>.<br>
+      Ensure the file exists at <code>img/…</code> (no leading slash) in your repo.
+    </p>`;
+  });
+
+  // Once image loads, set up hotspots + author layer
+  img.addEventListener('load', () => {
+    const rect = img.getBoundingClientRect();
+    const wrap = img.parentElement;
+
+    const s = readDB();
+    const fset = s.found[p.id]?.set || new Array(p.hotspots.length).fill(false);
+
+    // Show current (invisible) hotspots; turn green when found
+    p.hotspots.forEach((h, i) => {
+      const hs = document.createElement('div'); hs.className='hotspot';
+      const x = pctToPx(h.x, rect.width), y = pctToPx(h.y, rect.height);
+      const w = pctToPx(h.w, rect.width), hpx = pctToPx(h.h, rect.height);
+      hs.style.left = x+'px'; hs.style.top = y+'px'; hs.style.width = w+'px'; hs.style.height = hpx+'px';
+      if (fset[i]) hs.classList.add('found');
+      wrap.appendChild(hs);
+    });
+
+    // Tap/click detection on the image (normal play mode)
+    wrap.addEventListener('click', (ev) => {
+      if (authorMode) return; // author mode draws; play mode clicks
+      const r = img.getBoundingClientRect();
+      const cx = ev.clientX - r.left; const cy = ev.clientY - r.top;
+      const { hitIndex } = detectHit(p.hotspots, r.width, r.height, cx, cy, fset);
+      if (hitIndex !== -1) {
+        fset[hitIndex] = true;
+        const hs = wrap.querySelectorAll('.hotspot')[hitIndex];
+        hs.classList.add('found');
+        saveFound(p.id, fset);
+        result.innerHTML = `<p class="success">Found: ${p.hotspots[hitIndex].label}</p>`;
+        confetti(10);
+        if (fset.every(Boolean)) {
+          markComplete(p.id);
+          nextPanel.style.display = 'block';
+
+          // OPTIONAL: Auto restart current image after 2s
+          // setTimeout(() => resetCurrentPuzzle(p), 2000);
+        }
+      } else {
+        result.innerHTML = `<p>Keep hunting…</p>`;
+      }
+    });
+
+    // AUTHOR MODE: overlay layer to capture drag and copy JSON
+    if (authorMode) enableAuthorDraw(wrap, img);
+  });
+
+  // Next button
+  const nextBtn = card.querySelector('#nextBtn');
+  if (nextBtn) nextBtn.addEventListener('click', () => {
+    const s = readDB(); s.idx = clamp(s.idx+1, 0, PUZZLES.length-1); writeDB(s);
+    render();
+  });
+
+  // Reset buttons (always visible under the image)
+  const resetCurrentBtn = card.querySelector('#resetCurrentAbove');
+  if (resetCurrentBtn) resetCurrentBtn.addEventListener('click', () => resetCurrentPuzzle(p));
+  const resetAllBtn = card.querySelector('#resetAllAbove');
+  if (resetAllBtn) resetAllBtn.addEventListener('click', resetAllProgress);
+}
+
+function detectHit(hotspots, w, h, cx, cy, fset){
+  for (let i=0; i<hotspots.length; i++){
+    if (fset[i]) continue;
+    const hs = hotspots[i];
+    const rx = pctToPx(hs.x, w), ry = pctToPx(hs.y, h);
+    const rw = pctToPx(hs.w, w), rh = pctToPx(hs.h, h);
+    if (cx >= rx && cx <= rx+rw && cy >= ry && cy <= ry+rh) return { hitIndex:i };
+  }
+  return { hitIndex:-1 };
+}
+
+/* ===========================
+   STATE HELPERS
+   =========================== */
+function saveFound(id, set){
+  const s = readDB(); s.found[id] = s.found[id] || {};
+  s.found[id].set = set;
+  writeDB(s);
+}
+function markComplete(id){
+  const s = readDB(); s.found[id] = s.found[id] || {};
+  s.found[id].all = true; writeDB(s);
+  const completed = Object.keys(s.found).filter(k => s.found[k]?.all).length;
+  document.getElementById('bar').style.width = Math.round(completed/PUZZLES.length*100) + '%';
+}
+
+/* ===========================
+   CONFETTI (emoji)
+   =========================== */
+function confetti(n=18){
+  for(let i=0;i<n;i++){
+    const d=document.createElement('div');
+    d.textContent='🎊'; d.style.position='fixed'; d.style.left=Math.random()*100+'%';
+    d.style.top='-20px'; d.style.fontSize='20px'; d.style.transition='transform 1.2s ease, opacity 1.2s';
+    document.body.appendChild(d);
+    setTimeout(()=>{ d.style.transform=`translateY(${80+Math.random()*70}vh)`; d.style.opacity='0'; }, 10);
+    setTimeout(()=> d.remove(), 1400);
+  }
+}
+
+/* ===========================
+   AUTHOR MODE — overlay draw + clipboard
+   =========================== */
+function enableAuthorDraw(wrap, img){
+  const layer = document.createElement('div');
+  layer.className = 'drawLayer';
+  wrap.appendChild(layer);
+
+  const drawn = [];
+  let start = null;     // {x,y,rect}
+  let rectEl = null;
+
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+  const toPct = (px, size) => ((px / size) * 100);
+  const getRect = () => layer.getBoundingClientRect();
+
+  function ptMouse(e){
+    const r = getRect();
+    return { x: clamp(e.clientX - r.left, 0, r.width), y: clamp(e.clientY - r.top, 0, r.height), rect:r };
+  }
+  function ptTouch(e){
+    const t = e.touches[0] || e.changedTouches[0];
+    const r = getRect();
+    return { x: clamp(t.clientX - r.left, 0, r.width), y: clamp(t.clientY - r.top, 0, r.height), rect:r };
   }
 
-  // For other GET requests (images, CSS, JS), serve cache first, then network
-  if (req.method === 'GET') {
-    event.respondWith(
-      caches.match(req, { ignoreSearch: true }).then(cached => {
-        if (cached) return cached;
-        return fetch(req).then(res => {
-          if (res && res.status === 200) {
-            const copy = res.clone();
-            caches.open(CACHE).then(c => c.put(req, copy));
-          }
-          return res;
-        });
-      })
-    );
+  function begin(x,y,rect){
+    start = { x,y,rect };
+    rectEl = document.createElement('div');
+    rectEl.className = 'drawRect';
+    rectEl.style.left = `${x}px`;
+    rectEl.style.top  = `${y}px`;
+    rectEl.style.width  = `0px`;
+    rectEl.style.height = `0px`;
+    layer.appendChild(rectEl);
   }
-});
+  layer.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    const p = ptMouse(e);
+    begin(p.x, p.y, p.rect);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup',   onMouseUp, { once:true });
+  });
+  function onMouseMove(e){
+    if (!start || !rectEl) return;
+    const p = ptMouse(e); update(p);
+  }
+  function onMouseUp(){
+    finish();
+    window.removeEventListener('mousemove', onMouseMove);
+  }
+
+  layer.addEventListener('touchstart', (e) => {
+    if (e.touches.length > 1) return;
+    const p = ptTouch(e);
+    begin(p.x, p.y, p.rect);
+    window.addEventListener('touchmove', onTouchMove, { passive:false });
+    window.addEventListener('touchend',  onTouchEnd,  { once:true });
+    window.addEventListener('touchcancel', cancelTouch, { once:true });
+  }, { passive:true });
+  function onTouchMove(e){
+    if (!start || !rectEl) return;
+    e.preventDefault();
+    const p = ptTouch(e); update(p);
+  }
+  function onTouchEnd(){
+    finish();
+    window.removeEventListener('touchmove', onTouchMove);
+  }
+  function cancelTouch(){
+    if (rectEl) rectEl.remove();
+    start = null; rectEl = null;
+    window.removeEventListener('touchmove', onTouchMove);
+  }
+
+  function update(p){
+    const w = p.x - start.x;
+    const h = p.y - start.y;
+    const left = clamp(w < 0 ? p.x : start.x, 0, p.rect.width);
+    const top  = clamp(h < 0 ? p.y : start.y, 0, p.rect.height);
+    const width  = clamp(Math.abs(w), 0, p.rect.width  - left);
+    const height = clamp(Math.abs(h), 0, p.rect.height - top);
+    rectEl.style.left   = `${left}px`;
+    rectEl.style.top    = `${top}px`;
+    rectEl.style.width  = `${width}px`;
+    rectEl.style.height = `${height}px`;
+  }
+
+  function finish(){
+    if (!start || !rectEl) return;
+    const r = getRect();
+    const leftPx = Number.parseFloat(rectEl.style.left)   || 0;
+    const topPx  = Number.parseFloat(rectEl.style.top)    || 0;
+    const wPx    = Number.parseFloat(rectEl.style.width)  || 0;
+    const hPx    = Number.parseFloat(rectEl.style.height) || 0;
+    if (wPx < 1 || hPx < 1) { rectEl.remove(); start=null; rectEl=null; return; }
+    const json = {
+      x: +toPct(leftPx, r.width).toFixed(2),
+      y: +toPct(topPx,  r.height).toFixed(2),
+      w: +toPct(wPx,    r.width).toFixed(2),
+      h: +toPct(hPx,    r.height).toFixed(2),
+      label: "New item"
+    };
+    drawn.push(json);
+    console.log('Hotspot JSON added:', json);
+    start = null; rectEl = null;
+  }
+
+  // Controls: Copy + Reset
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'btn ghost';
+  copyBtn.textContent = 'Copy hotspots to clipboard';
+  copyBtn.style.marginTop = '.6rem';
+  copyBtn.addEventListener('click', async () => {
+    const text = JSON.stringify(drawn, null, 2);
+    if (!text || drawn.length === 0) {
+      alert('No hotspots drawn yet.\nDrag to draw rectangles on the overlay, then click Copy.');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      alert(`Copied ${drawn.length} hotspot(s) to clipboard.\nPaste into PUZZLES[].hotspots in index.html.`);
+      console.log('Copied hotspots JSON:\n', text);
+    } catch (err) {
+      console.error('Clipboard write failed:', err);
+      alert('Copy failed.\nOpen DevTools → Console and copy the logged JSON there.');
+      console.log('Hotspots (fallback):\n', text);
+    }
+  });
+
+  const resetBtn = document.createElement('button');
+  resetBtn.className = 'btn ghost';
+  resetBtn.textContent = 'Reset drawn hotspots';
+  resetBtn.style.marginLeft = '.5rem';
+  resetBtn.addEventListener('click', () => {
+    drawn.length = 0;
+    [...layer.querySelectorAll('.drawRect')].forEach(el => el.remove());
+    alert('Cleared current hotspots. Draw new rectangles and copy again.');
+  });
+
+  const controls = document.createElement('div');
+  controls.style.marginTop = '.6rem';
+  controls.appendChild(copyBtn);
+  controls.appendChild(resetBtn);
+  wrap.parentElement.appendChild(controls);
+}
+
+/* ===========================
+   Service worker registration
+   =========================== */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+
+// Start
+render();
+</script>
+</body>
