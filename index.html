@@ -294,125 +294,157 @@ function confetti(n=18){
 
 
 
+
+
 // =============================
-// AUTHOR MODE — draw rectangles & copy JSON
+// AUTHOR MODE — robust pointer draw + reliable JSON copy
 // =============================
 function enableAuthorDraw(wrap, img){
-  let start = null, rectEl = null;
+  const MIN_DRAG_PX = 3;           // require at least a tiny drag
+  const drawn = [];                // hotspots collected for this image
+  let start = null;                // {x,y} in image coords
+  let rectEl = null;               // the visual rectangle overlay
 
-  // Store all rectangles drawn on THIS image
-  // Each rect will be captured in percent units (responsive)
-  const drawn = [];
-
-  const toPct = (px, size) => (px / size) * 100;
   const getImgRect = () => img.getBoundingClientRect();
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+  const toPct = (px, size) => ((px / size) * 100);
+
+  // Normalize pointer coords to image-local coordinates
+  function localPoint(evt) {
+    const r = getImgRect();
+    const clientX = evt.clientX ?? (evt.touches && evt.touches[0]?.clientX);
+    const clientY = evt.clientY ?? (evt.touches && evt.touches[0]?.clientY);
+    return {
+      x: clamp(clientX - r.left, 0, r.width),
+      y: clamp(clientY - r.top,  0, r.height),
+      rect: r
+    };
+  }
 
   // Start drawing
-  wrap.addEventListener('mousedown', (e) => {
-    const r = getImgRect();
-    start = { x: e.clientX - r.left, y: e.clientY - r.top };
+  function onPointerDown(evt){
+    // Only left button for mouse; always ok for touch
+    if (evt.button !== undefined && evt.button !== 0) return;
+    const p = localPoint(evt);
+    start = { x: p.x, y: p.y, rect: p.rect };
 
     rectEl = document.createElement('div');
     rectEl.className = 'drawRect';
-    rectEl.style.left = start.x + 'px';
-    rectEl.style.top  = start.y + 'px';
+    rectEl.style.left = `${start.x}px`;
+    rectEl.style.top  = `${start.y}px`;
+    rectEl.style.width  = '0px';
+    rectEl.style.height = '0px';
     wrap.appendChild(rectEl);
-  });
 
-  // Update rectangle as you drag
-  window.addEventListener('mousemove', (e) => {
+    // capture subsequent events
+    wrap.setPointerCapture?.(evt.pointerId);
+  }
+
+  // Update rectangle while dragging
+  function onPointerMove(evt){
+    if (!start || !rectEl) return;
+    const p = localPoint(evt);
+    const w = p.x - start.x;
+    const h = p.y - start.y;
+
+    const left = w < 0 ? p.x : start.x;
+    const top  = h < 0 ? p.y : start.y;
+
+    rectEl.style.left   = `${left}px`;
+    rectEl.style.top    = `${top}px`;
+    rectEl.style.width  = `${Math.abs(w)}px`;
+    rectEl.style.height = `${Math.abs(h)}px`;
+  }
+
+  // Finish rectangle and store JSON
+  function onPointerUp(evt){
     if (!start || !rectEl) return;
     const r = getImgRect();
-    const cx = e.clientX - r.left;
-    const cy = e.clientY - r.top;
 
-    const w = cx - start.x;
-    const h = cy - start.y;
+    // Parse computed numbers safely
+    const leftPx = Number.parseFloat(rectEl.style.left)  || 0;
+    const topPx  = Number.parseFloat(rectEl.style.top)   || 0;
+    const wPx    = Number.parseFloat(rectEl.style.width) || 0;
+    const hPx    = Number.parseFloat(rectEl.style.height)|| 0;
 
-    rectEl.style.width  = Math.abs(w) + 'px';
-    rectEl.style.height = Math.abs(h) + 'px';
-    rectEl.style.left   = (w < 0 ? cx : start.x) + 'px';
-    rectEl.style.top    = (h < 0 ? cy : start.y) + 'px';
-  });
-
-  // Finish rectangle and push JSON
-  window.addEventListener('mouseup', () => {
-    if (!start || !rectEl) return;
-    const r = getImgRect();
-
-    const left = parseFloat(rectEl.style.left);
-    const top  = parseFloat(rectEl.style.top);
-    const w    = parseFloat(rectEl.style.width);
-    const h    = parseFloat(rectEl.style.height);
-
-    // Skip zero-size rectangles
-    if (w <= 0 || h <= 0) {
+    // Enforce min size to avoid accidental clicks
+    if (wPx < MIN_DRAG_PX || hPx < MIN_DRAG_PX) {
       rectEl.remove();
       start = null; rectEl = null;
       return;
     }
 
+    // Clamp within image bounds (belt & suspenders)
+    const clLeft = clamp(leftPx, 0, r.width);
+    const clTop  = clamp(topPx,  0, r.height);
+    const clW    = clamp(wPx,    0, r.width - clLeft);
+    const clH    = clamp(hPx,    0, r.height - clTop);
+
+    // Convert to % and round to 2 decimals
     const json = {
-      x: +toPct(left, r.width).toFixed(2),
-      y: +toPct(top,  r.height).toFixed(2),
-      w: +toPct(w,    r.width).toFixed(2),
-      h: +toPct(h,    r.height).toFixed(2),
+      x: +toPct(clLeft, r.width).toFixed(2),
+      y: +toPct(clTop,  r.height).toFixed(2),
+      w: +toPct(clW,    r.width).toFixed(2),
+      h: +toPct(clH,    r.height).toFixed(2),
       label: "New item"
     };
 
     drawn.push(json);
     console.log('Hotspot JSON added:', json);
 
-    // Reset
     start = null; rectEl = null;
-  });
+    // release pointer capture
+    try { wrap.releasePointerCapture?.(evt.pointerId); } catch {}
+  }
 
-  // --- Copy button (actually copies!) ---
+  // Hook pointer events (works for mouse + touch)
+  wrap.addEventListener('pointerdown', onPointerDown);
+  window.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('pointerup',   onPointerUp);
+  window.addEventListener('pointercancel', () => { start=null; rectEl=null; });
+
+  // --- Copy JSON button ---
   const copyBtn = document.createElement('button');
-  copyBtn.className = 'btn ghost';     // gray style is fine; it’s just a secondary button
+  copyBtn.className = 'btn ghost';
   copyBtn.textContent = 'Copy hotspots to clipboard';
   copyBtn.style.marginTop = '.6rem';
 
   copyBtn.addEventListener('click', async () => {
-    // Build pretty JSON (indented)
     const text = JSON.stringify(drawn, null, 2);
-
     if (!text || drawn.length === 0) {
       alert('No hotspots drawn yet.\nDrag to draw rectangles on the image, then click Copy.');
       return;
     }
-
     try {
-      // Clipboard API requires HTTPS and user gesture — both satisfied here.
       await navigator.clipboard.writeText(text);
       alert(`Copied ${drawn.length} hotspot(s) to clipboard.\nPaste into PUZZLES[].hotspots in index.html.`);
       console.log('Copied hotspots JSON:\n', text);
     } catch (err) {
       console.error('Clipboard write failed:', err);
-      alert('Copy failed. As a fallback, open DevTools → Console and copy the logged JSON there.');
+      alert('Copy failed.\nOpen DevTools → Console and copy the logged JSON there.');
       console.log('Hotspots (fallback):\n', text);
     }
   });
 
-  // Add a small "Reset" button to clear & redraw if needed
+  // Reset button
   const resetBtn = document.createElement('button');
   resetBtn.className = 'btn ghost';
   resetBtn.textContent = 'Reset drawn hotspots';
   resetBtn.style.marginLeft = '.5rem';
   resetBtn.addEventListener('click', () => {
     drawn.length = 0;
-    // Remove any temporary author rectangles from the UI
     [...wrap.querySelectorAll('.drawRect')].forEach(el => el.remove());
-    alert('Cleared current hotspots for this image. Draw new rectangles and copy again.');
+    alert('Cleared current hotspots. Draw new rectangles and copy again.');
   });
 
-  // Mount buttons
   const controls = document.createElement('div');
   controls.style.marginTop = '.6rem';
   controls.appendChild(copyBtn);
   controls.appendChild(resetBtn);
   wrap.parentElement.appendChild(controls);
 }
+
+
 
 
 // =============================
@@ -428,6 +460,7 @@ render();
 </script>
 </body>
 </html>
+
 
 
 
