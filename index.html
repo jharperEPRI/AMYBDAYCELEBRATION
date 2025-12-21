@@ -29,11 +29,14 @@
     .btn { background:var(--primary); color:#fff; border:none; border-radius:12px; padding:.6rem 1rem; font-weight:600; cursor:pointer; }
     .btn.secondary { background:#6d28d9; }
     .btn.ghost { background:#f4f4f5; color:#111; }
+    .tools { margin-top:.6rem; }
+
     .result { margin:.6rem 0; }
     .success { color:var(--green); font-weight:600; }
     .warn { color:var(--red); }
     .nextPanel { margin-top:.8rem; padding:.8rem; background:#f9fafb; border:1px solid #e5e7eb; border-radius:12px; }
-    footer { text-align:center; color:var(--gray); padding:2rem 1rem; }
+
+    footer { text-align:center; color:#6b7280; padding:2rem 1rem; }
 
     /* Author-mode overlay & rectangle */
     .drawLayer {
@@ -54,7 +57,10 @@
 <body>
 <header>
   <h1>🎉 Birthday Quest — Hidden Objects</h1>
-  <p>Find the hidden items in each image to reveal the next location.</p>
+  <p class="meta">
+    Find the hidden items in each image to reveal the next location.
+    <span style="margin-left:.6rem">#Start over</a></span>
+  </p>
   <div class="progress"><div class="bar" id="bar"></div></div>
   <p class="meta">Tip: In Safari, tap <b>Share</b> → <b>Add to Home Screen</b> for an app‑like experience.</p>
 </header>
@@ -63,9 +69,9 @@
 <footer>Made with ❤️ by Jim & family</footer>
 
 <script>
-// =============================
-// CONFIG: puzzles (sequential)
-// =============================
+/* ===========================
+   CONFIG: puzzles (sequential)
+   =========================== */
 const PUZZLES = [
   {
     id:"villagegrind",
@@ -74,18 +80,16 @@ const PUZZLES = [
     reveal:{ title:"Next: The Village Grind", maps:"https://maps.apple.com/?q=The%20Village%20Grind" },
     hotspots:[
       // Replace these after author-mode drawing
-
-
-      { x:24.33, y:29.5, w:29.1, h:20.22, label:"Pancake" },
-      { x:58.6, y:76.85, w:13.69, h:22.78, label:"sippy cup" }
+      { x:36.0, y:62.5, w:9.0, h:12.0, label:"Coffee cup" },
+      { x:22.5, y:48.0, w:12.5, h:10.0, label:"Pastry plate" }
     ]
   }
   // Add your other stops here (Morning Goat, Painting with a Twist, etc.)
 ];
 
-// =============================
-// STATE & UTILS
-// =============================
+/* ===========================
+   STATE & UTILS
+   =========================== */
 const DBKEY = 'quest2026-hidden';
 const readDB = () => { try { return JSON.parse(localStorage.getItem(DBKEY))||{ idx:0, found:{} }; } catch(e){ return { idx:0, found:{} }; } };
 const writeDB = (d) => localStorage.setItem(DBKEY, JSON.stringify(d));
@@ -99,9 +103,23 @@ function resolveAsset(path) {
   return new URL(safe, location.href).toString();
 }
 
-// =============================
-// RENDER CURRENT PUZZLE
-// =============================
+/* ===========================
+   RESET HELPERS
+   =========================== */
+function resetCurrentPuzzle(p) {
+  const s = readDB();
+  if (s.found && s.found[p.id]) delete s.found[p.id];
+  writeDB(s);
+  render();
+}
+function resetAllProgress() {
+  localStorage.removeItem(DBKEY);
+  render();
+}
+
+/* ===========================
+   RENDER CURRENT PUZZLE
+   =========================== */
 function render(){
   const state = readDB();
   const idx = clamp(state.idx, 0, PUZZLES.length-1);
@@ -123,6 +141,10 @@ function render(){
     <div class="imgWrap">
       <img id="pimg" alt="Hidden objects image"/>
     </div>
+    <div class="tools">
+      <button class="btn ghost" id="resetCurrentAbove">Reset this image</button>
+      <button class="btn ghost" id="resetAllAbove" style="margin-left:.5rem">Reset all</button>
+    </div>
     <div class="result" id="result"></div>
     <div class="nextPanel" id="nextPanel" style="display:none">
       <p class="success">All items found! 🎊</p>
@@ -130,9 +152,14 @@ function render(){
       <p>${p.reveal.maps}Open in Apple Maps</a></p>
       ${idx < PUZZLES.length-1 ? `<button class="btn secondary" id="nextBtn">Reveal Next Image</button>` : `<p>💜 You reached the finale! Have an amazing day.</p>`}
     </div>
-    ${authorMode ? `<p class="meta">Author mode: drag rectangles on the overlay; click Copy to clipboard.</p>` : ''}
   `;
   app.appendChild(card);
+
+  // Header "Start over" link
+  document.getElementById('startOver')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    resetAllProgress();
+  });
 
   const img = card.querySelector('#pimg');
   const result = card.querySelector('#result');
@@ -171,7 +198,7 @@ function render(){
 
     // Tap/click detection on the image (normal play mode)
     wrap.addEventListener('click', (ev) => {
-      if (authorMode) return; // author mode draws, play mode clicks
+      if (authorMode) return; // author mode draws; play mode clicks
       const r = img.getBoundingClientRect();
       const cx = ev.clientX - r.left; const cy = ev.clientY - r.top;
       const { hitIndex } = detectHit(p.hotspots, r.width, r.height, cx, cy, fset);
@@ -185,6 +212,9 @@ function render(){
         if (fset.every(Boolean)) {
           markComplete(p.id);
           nextPanel.style.display = 'block';
+
+          // OPTIONAL: Auto restart current image after 2s
+          // setTimeout(() => resetCurrentPuzzle(p), 2000);
         }
       } else {
         result.innerHTML = `<p>Keep hunting…</p>`;
@@ -201,6 +231,12 @@ function render(){
     const s = readDB(); s.idx = clamp(s.idx+1, 0, PUZZLES.length-1); writeDB(s);
     render();
   });
+
+  // Reset buttons (always visible under the image)
+  const resetCurrentBtn = card.querySelector('#resetCurrentAbove');
+  if (resetCurrentBtn) resetCurrentBtn.addEventListener('click', () => resetCurrentPuzzle(p));
+  const resetAllBtn = card.querySelector('#resetAllAbove');
+  if (resetAllBtn) resetAllBtn.addEventListener('click', resetAllProgress);
 }
 
 function detectHit(hotspots, w, h, cx, cy, fset){
@@ -214,9 +250,9 @@ function detectHit(hotspots, w, h, cx, cy, fset){
   return { hitIndex:-1 };
 }
 
-// =============================
-// STATE HELPERS
-// =============================
+/* ===========================
+   STATE HELPERS
+   =========================== */
 function saveFound(id, set){
   const s = readDB(); s.found[id] = s.found[id] || {};
   s.found[id].set = set;
@@ -229,9 +265,9 @@ function markComplete(id){
   document.getElementById('bar').style.width = Math.round(completed/PUZZLES.length*100) + '%';
 }
 
-// =============================
-// CONFETTI (emoji)
-// =============================
+/* ===========================
+   CONFETTI (emoji)
+   =========================== */
 function confetti(n=18){
   for(let i=0;i<n;i++){
     const d=document.createElement('div');
@@ -243,11 +279,10 @@ function confetti(n=18){
   }
 }
 
-// =============================
-// AUTHOR MODE — overlay draw + clipboard
-// =============================
+/* ===========================
+   AUTHOR MODE — overlay draw + clipboard
+   =========================== */
 function enableAuthorDraw(wrap, img){
-  // transparent overlay above the image
   const layer = document.createElement('div');
   layer.className = 'drawLayer';
   wrap.appendChild(layer);
@@ -391,9 +426,9 @@ function enableAuthorDraw(wrap, img){
   wrap.parentElement.appendChild(controls);
 }
 
-// =============================
-// Service worker registration
-// =============================
+/* ===========================
+   Service worker registration
+   =========================== */
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js');
 }
@@ -402,5 +437,3 @@ if ('serviceWorker' in navigator) {
 render();
 </script>
 </body>
-</html>
-
