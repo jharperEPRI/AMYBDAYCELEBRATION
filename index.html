@@ -231,6 +231,43 @@ function render(){
     </div>
   `;
   app.appendChild(card);
+  
+// === Author-mode navigation (Prev / Next) ===
+// Place this inside render(), right after: app.appendChild(card);
+if (authorMode) {
+  const nav = document.createElement('div');
+  nav.style.marginTop = '.6rem';
+
+  // (Optional) some small styling so it aligns with your UI
+  nav.innerHTML = `
+    <div class="tools">
+      <button class="btn ghost" id="prevPuzzle">Prev</button>
+      <button class="btn ghost" id="nextPuzzle" style="margin-left:.5rem">Next</button>
+      <span class="meta" style="margin-left:.8rem">
+        Puzzle <b>${idx + 1}</b> of <b>${PUZZLES.length}</b>
+      </span>
+    </div>
+  `;
+
+  card.appendChild(nav);
+
+  const prevBtn = nav.querySelector('#prevPuzzle');
+  const nextBtn = nav.querySelector('#nextPuzzle');
+
+  prevBtn.addEventListener('click', () => {
+    const s = readDB();
+    s.idx = Math.max(0, (s.idx ?? 0) - 1);
+    writeDB(s);
+    render();   // refresh to show the previous puzzle
+  });
+
+  nextBtn.addEventListener('click', () => {
+    const s = readDB();
+    s.idx = Math.min(PUZZLES.length - 1, (s.idx ?? 0) + 1);
+    writeDB(s);
+    render();   // refresh to show the next puzzle
+  });
+}
 
   // Header "Start over" link
   document.getElementById('startOver')?.addEventListener('click', (e) => {
@@ -514,6 +551,7 @@ if ('serviceWorker' in navigator) {
 render();
 </script>
 </body>
+
 
 
 
