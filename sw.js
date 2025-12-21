@@ -1,7 +1,17 @@
 
 // sw.js
-const CACHE = 'quest-2026-v2'; // <-- bump version
-const ASSETS = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png'];
+
+const CACHE = 'quest-2026-v3'; // bump version
+
+const ASSETS = [
+  'index.html',
+  'manifest.json',
+  'sw.js',
+  'icon-192.png',
+  'icon-512.png',
+  'img/village-grind.jpg',             // relative
+  // add the other images you use...
+];
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -23,3 +33,4 @@ self.addEventListener('fetch', e => {
     caches.match(e.request).then(r => r || fetch(e.request))
   );
 });
+
