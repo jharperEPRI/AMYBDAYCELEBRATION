@@ -75,9 +75,22 @@
 const PUZZLES = [
   {
     id:"villagegrind",
-    name:"Hidden Objects — Coffee & Pastries",
+    name:"Event 1, The Pick Me Up",
     img:"img/village-grind.jpg?v=2",      // project-relative; safe for GitHub Pages
-    reveal:{ title:"Next: The Village Grind", maps:"https://maps.apple.com/?q=The%20Village%20Grind" },
+    reveal:{ title:"Next: The Village Grind"},
+    hotspots:[
+
+      
+      // Replace these after author-mode drawing
+      { x:25.52, y:31.15, w:27.97, h:18.3, label:"Pancake" },
+      { x:57.58, y:75.15, w:15.15, h:24.85, label:"Sippy Cup" }
+    ]
+  },
+    {
+    id:"Event 2: Sustinence",
+    name:"Hidden Objects — Coffee & Pastries",
+    img:"img/morning-goat.jpg?v=2",      // project-relative; safe for GitHub Pages
+    reveal:{ title:"Next: The Morning Goat"},
     hotspots:[
 
       
@@ -439,4 +452,5 @@ if ('serviceWorker' in navigator) {
 render();
 </script>
 </body>
+
 
