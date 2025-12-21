@@ -13,24 +13,32 @@ const ASSETS = [
   // add the other images you use...
 ];
 
+
 self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS))
-    .then(() => self.skipWaiting())        // take control ASAP
-  );
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.map(k => (k !== CACHE ? caches.delete(k) : null)))
-    ).then(() => self.clients.claim())     // control all pages
+    caches.keys().then(keys => Promise.all(keys.map(k => k !== CACHE ? caches.delete(k) : null)))
+      .then(() => self.clients.claim())
   );
 });
 
-self.addEventListener('fetch', e => {
-  e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request))
+
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request, { ignoreSearch: true }).then((cached) => {
+      return cached || fetch(event.request).then((res) => {
+        if (event.request.method === 'GET' && res && res.status === 200) {
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put(event.request, copy));
+        }
+        return res;
+      }).catch(() => cached);
+    })
   );
 });
+
 
